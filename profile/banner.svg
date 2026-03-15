@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 200" width="860" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#1e1b4b;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="200" rx="18" fill="url(#fade)"/>
+
+  <!-- Subtle grid lines -->
+  <g stroke="rgba(255,255,255,0.04)" stroke-width="1">
+    <line x1="0" y1="40" x2="860" y2="40"/>
+    <line x1="0" y1="80" x2="860" y2="80"/>
+    <line x1="0" y1="120" x2="860" y2="120"/>
+    <line x1="0" y1="160" x2="860" y2="160"/>
+    <line x1="172" y1="0" x2="172" y2="200"/>
+    <line x1="344" y1="0" x2="344" y2="200"/>
+    <line x1="516" y1="0" x2="516" y2="200"/>
+    <line x1="688" y1="0" x2="688" y2="200"/>
+  </g>
+
+  <!-- Icon background circle -->
+  <circle cx="100" cy="100" r="72" fill="rgba(255,255,255,0.07)"/>
+
+  <!-- Z icon (scaled from 128x128 to ~100px centered at 100,100) -->
+  <g transform="translate(100,100) scale(0.72) translate(-64,-64)">
+    <rect width="128" height="128" rx="20" fill="url(#bg)"/>
+    <path d="M 32 34 L 96 34 L 96 46 L 52 82 L 96 82 L 96 94 L 32 94 L 32 82 L 76 46 L 32 46 Z" fill="white"/>
+    <circle cx="28" cy="64" r="5" fill="rgba(255,255,255,0.4)"/>
+    <circle cx="100" cy="64" r="5" fill="rgba(255,255,255,0.4)"/>
+  </g>
+
+  <!-- Org name -->
+  <text x="204" y="88" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" fill="white" letter-spacing="-1">ZeroAlloc</text>
+  <text x="204" y="88" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="42" font-weight="300" fill="rgba(255,255,255,0.6)" letter-spacing="-1">
+    <tspan dx="4">·</tspan>
+    <tspan dx="4">Net</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="206" y="122" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="16" fill="rgba(255,255,255,0.65)" letter-spacing="0.3">Zero-allocation · Native AOT · Compile-time .NET libraries</text>
+
+  <!-- Divider -->
+  <line x1="204" y1="140" x2="780" y2="140" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+
+  <!-- Pills -->
+  <rect x="204" y="154" width="100" height="28" rx="14" fill="rgba(255,255,255,0.1)"/>
+  <text x="254" y="173" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="rgba(255,255,255,0.85)" text-anchor="middle">🚀 AOT-safe</text>
+
+  <rect x="316" y="154" width="124" height="28" rx="14" fill="rgba(255,255,255,0.1)"/>
+  <text x="378" y="173" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="rgba(255,255,255,0.85)" text-anchor="middle">⚡ No reflection</text>
+
+  <rect x="452" y="154" width="136" height="28" rx="14" fill="rgba(255,255,255,0.1)"/>
+  <text x="520" y="173" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="rgba(255,255,255,0.85)" text-anchor="middle">🔧 Source generators</text>
+
+  <rect x="600" y="154" width="90" height="28" rx="14" fill="rgba(255,255,255,0.1)"/>
+  <text x="645" y="173" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="rgba(255,255,255,0.85)" text-anchor="middle">🎯 .NET 8+</text>
+</svg>
