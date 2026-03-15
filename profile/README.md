@@ -18,7 +18,26 @@ Everything here targets .NET 8+ and is designed to work end-to-end with `Publish
 
 | Package | Description | NuGet |
 |---|---|---|
+| [ZeroAlloc.Analyzers](https://github.com/ZeroAlloc-Net/ZeroAlloc.Analyzers) | Roslyn analyzers for modern .NET performance patterns | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Analyzers.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Analyzers) |
 | [ZeroAlloc.Inject](https://github.com/ZeroAlloc-Net/ZeroAlloc.Inject) | Compile-time dependency injection via Roslyn source generator | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Inject.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Inject) |
+| [ZeroAlloc.Mediator](https://github.com/ZeroAlloc-Net/ZeroAlloc.Mediator) | Zero-allocation mediator library with source-generated dispatch | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Mediator.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Mediator) |
+
+---
+
+## ZeroAlloc.Analyzers
+
+**42+ Roslyn analyzers** that detect allocation-heavy patterns and suggest zero/low-allocation alternatives. Fully aware of target framework version — rules automatically enable/disable based on `TargetFramework`.
+
+Rules cover collections, strings, memory, logging, LINQ, async/await, serialization, and more. Common checks include:
+
+- `ZA0101`: Use `FrozenDictionary` for read-only dictionaries
+- `ZA0109`: Avoid zero-length array allocation — use `Array.Empty()`
+- `ZA0201`: Avoid string concatenation in loops
+- `ZA0603`: Use `.Count`/`.Length` instead of LINQ `.Count()`
+- `ZA1001`: Use JSON source generation instead of reflection
+- `ZA1401`: Use static lambda when no capture needed
+
+Designed to complement existing analyzers and catch subtle allocation bugs at build time.
 
 ---
 
@@ -57,6 +76,33 @@ var provider = services.BuildZeroAllocInjectServiceProvider();
 > If it needs reflection at runtime, it doesn't belong here.
 
 All libraries in this org follow the same contract: the heavy work happens at compile time via Roslyn source generators or compile-time analysis. The runtime path is a straight line — no dictionaries, no `Type.GetMethod`, no dynamic dispatch.
+
+---
+
+## ZeroAlloc.Mediator
+
+Compile-time wired mediator for request/response, notifications, and streaming with **zero allocations** on all dispatch paths. Pipeline behaviors are inlined as static nested calls with no closure allocation.
+
+```csharp
+public readonly record struct Ping(string Message) : IRequest<string>;
+
+public class PingHandler : IRequestHandler<Ping, string>
+{
+    public ValueTask<string> Handle(Ping request, CancellationToken ct)
+        => ValueTask.FromResult($"Pong: {request.Message}");
+}
+
+// Generated mediator with strongly-typed Send/Publish/CreateStream overloads
+var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
+```
+
+**Benchmark** (i9-12900HK, .NET 10):
+
+| Scenario | ZeroAlloc.Mediator | MediatR |
+|---|---|---|
+| Send | ~2 ns | ~88 ns |
+| Publish Single | ~6 ns | ~222 ns |
+| Publish Multi | ~5 ns | ~299 ns |
 
 ---
 
