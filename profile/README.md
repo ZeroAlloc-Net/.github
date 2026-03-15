@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="banner.svg" alt="ZeroAlloc-Net" width="860"/>
+  <img src="https://raw.githubusercontent.com/ZeroAlloc-Net/.github/main/profile/banner.svg" alt="ZeroAlloc-Net" width="860"/>
 </p>
 
 ## About
