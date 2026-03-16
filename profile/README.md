@@ -27,6 +27,7 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.Analyzers](https://github.com/ZeroAlloc-Net/ZeroAlloc.Analyzers) | Roslyn analyzers for modern .NET performance patterns | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Analyzers.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Analyzers) |
 | [ZeroAlloc.Inject](https://github.com/ZeroAlloc-Net/ZeroAlloc.Inject) | Compile-time dependency injection via Roslyn source generator | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Inject.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Inject) |
 | [ZeroAlloc.Mediator](https://github.com/ZeroAlloc-Net/ZeroAlloc.Mediator) | Zero-allocation mediator library with source-generated dispatch | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Mediator.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Mediator) |
+| [ZeroAlloc.ValueObjects](https://github.com/ZeroAlloc-Net/ZeroAlloc.ValueObjects) | Zero-allocation source-generated ValueObject equality for existing domain types | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.ValueObjects.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.ValueObjects) |
 
 ---
 
@@ -101,6 +102,45 @@ var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
 | Send | ~2 ns | ~88 ns |
 | Publish Single | ~6 ns | ~222 ns |
 | Publish Multi | ~5 ns | ~299 ns |
+
+---
+
+## ZeroAlloc.ValueObjects
+
+Source-generated `Equals`, `GetHashCode`, `==`/`!=`, and `ToString()` for your existing `partial class` and `partial struct` types — **zero allocations**, no boxing, no iterator state machines.
+
+Targets users of `CSharpFunctionalExtensions.ValueObject` where `GetEqualityComponents()` allocates on every equality check, but works equally well as a lightweight alternative to `record` when you can't or don't want to change the type keyword.
+
+```csharp
+// Drop onto any existing partial class — no keyword changes required
+[ValueObject]
+public partial class Money
+{
+    public decimal Amount { get; }
+    public string Currency { get; }
+}
+
+[ValueObject]
+public partial struct CustomerId
+{
+    public Guid Value { get; }
+}
+
+// Generated: Equals, GetHashCode (HashCode.Combine), ==, !=, ToString — zero alloc
+```
+
+Fine-grained control via `[EqualityMember]` (opt-in) and `[IgnoreEqualityMember]` (opt-out) attributes.
+
+**Benchmark** (i9-12900HK, .NET 9):
+
+| Method | Mean | Allocated |
+|---|---:|---:|
+| CFE_Equals | 45.2 ns | 96 B |
+| Record_Equals | 3.1 ns | 0 B |
+| **ZeroAlloc_Equals** | **3.1 ns** | **0 B** |
+| CFE_GetHashCode | 38.7 ns | 88 B |
+| Record_GetHashCode | 2.4 ns | 0 B |
+| **ZeroAlloc_GetHashCode** | **2.4 ns** | **0 B** |
 
 ---
 
