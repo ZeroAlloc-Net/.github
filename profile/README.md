@@ -31,7 +31,7 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | ZeroAlloc.Validation *(coming soon)* | Source-generated validation API — zero allocations, no reflection, Native AOT safe | — |
 | ZeroAlloc.Results *(coming soon)* | Zero-allocation source-generated discriminated union for result/error flow — no boxing, no `IEnumerable<Error>` | — |
 | ZeroAlloc.Specification *(coming soon)* | Source-generated specifications — compile-time predicate composition, no closure allocations | — |
-| ZeroAlloc.Events *(coming soon)* | Source-generated domain event dispatching — zero-allocation publish, compile-time handler wiring | — |
+| ZeroAlloc.Options *(coming soon)* | Source-generated options validation — replaces data annotation reflection with compile-time generated validators | — |
 
 ---
 
