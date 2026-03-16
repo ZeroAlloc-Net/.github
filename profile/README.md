@@ -12,6 +12,12 @@
 
 Everything here targets .NET 8+ and is designed to work end-to-end with `PublishAot=true`.
 
+### Design Philosophy
+
+> If it needs reflection at runtime, it doesn't belong here.
+
+All libraries in this org follow the same contract: the heavy work happens at compile time via Roslyn source generators or compile-time analysis. The runtime path is a straight line — no dictionaries, no `Type.GetMethod`, no dynamic dispatch.
+
 ---
 
 ## Packages
@@ -68,14 +74,6 @@ var provider = services.BuildZeroAllocInjectServiceProvider();
 | Resolve transient | ~3 ns | ~35 ns |
 | Resolve singleton | ~1 ns | ~8 ns |
 | Open generic (closed at compile time) | ~19 ns | N/A (AOT unsafe) |
-
----
-
-## Design Philosophy
-
-> If it needs reflection at runtime, it doesn't belong here.
-
-All libraries in this org follow the same contract: the heavy work happens at compile time via Roslyn source generators or compile-time analysis. The runtime path is a straight line — no dictionaries, no `Type.GetMethod`, no dynamic dispatch.
 
 ---
 
