@@ -4,9 +4,9 @@
 
 **Goal:** Build the `zeroalloc.net` marketing site and per-library Docusaurus documentation sites as a pnpm monorepo hosted on Cloudflare Pages.
 
-**Architecture:** pnpm workspace monorepo with Turborepo orchestration. One Astro app for the marketing site (`zeroalloc.net`), one Docusaurus app per library (e.g. `mediator.zeroalloc.net`). Shared theme and UI packages enforce visual consistency across all subdomains. Each app is a separate Cloudflare Pages deployment.
+**Architecture:** pnpm workspace monorepo with Turborepo orchestration. One Astro app for the marketing site (`zeroalloc.net`), one Docusaurus app per library (e.g. `mediator.zeroalloc.net`). Each library repo owns its `/docs` folder and is pulled into `.website` as a git submodule — docs live with the code, the website just themes and hosts them. Shared theme and UI packages enforce visual consistency across all subdomains. Each app is a separate Cloudflare Pages deployment.
 
-**Tech Stack:** pnpm workspaces, Turborepo, Astro 4, Docusaurus 3, React 18, TypeScript, Cloudflare Pages.
+**Tech Stack:** pnpm workspaces, Turborepo, Astro 4, Docusaurus 3, React 18, TypeScript, Cloudflare Pages, git submodules.
 
 ---
 
@@ -692,74 +692,35 @@ git commit -m "feat: build marketing site sections (hero, packages, footer)"
 
 ---
 
-### Task 6: Scaffold the first Docusaurus docs site (mediator)
+### Task 6: Add library repos as git submodules
 
 **Files:**
-- Create: `apps/docs-mediator/` (Docusaurus app)
+- Create: `repos/` directory with one submodule per library
 
-**Step 1: Create Docusaurus app**
+**Step 1: Add each library repo as a submodule**
 
 ```bash
-cd apps
-pnpm create docusaurus@latest docs-mediator classic --typescript
-cd docs-mediator
+git submodule add https://github.com/ZeroAlloc-Net/ZeroAlloc.Analyzers repos/analyzers
+git submodule add https://github.com/ZeroAlloc-Net/ZeroAlloc.Inject repos/inject
+git submodule add https://github.com/ZeroAlloc-Net/ZeroAlloc.Mediator repos/mediator
+git submodule add https://github.com/ZeroAlloc-Net/ZeroAlloc.ValueObjects repos/valueobjects
 ```
 
-**Step 2: Update package name and add theme dependency**
+**Step 2: Add a `/docs` folder to each library repo**
 
-Edit `apps/docs-mediator/package.json`:
-- Set `"name": "@zeroalloc/docs-mediator"`
-- Add `"@zeroalloc/theme": "workspace:*"` to dependencies
+For each library repo (do this in each library's own local clone), create:
 
-**Step 3: Replace docusaurus.config.ts with shared config**
-
-Replace contents of `apps/docs-mediator/docusaurus.config.ts`:
-
-```ts
-import type { Config } from '@docusaurus/types';
-import { sharedNavbar, sharedFooter, sharedThemeConfig } from '@zeroalloc/theme/docusaurus';
-
-const config: Config = {
-  title: 'ZeroAlloc.Mediator',
-  tagline: 'Zero-allocation source-generated mediator for .NET',
-  url: 'https://mediator.zeroalloc.net',
-  baseUrl: '/',
-  organizationName: 'ZeroAlloc-Net',
-  projectName: 'ZeroAlloc.Mediator',
-  trailingSlash: false,
-
-  themeConfig: {
-    ...sharedThemeConfig,
-    navbar: {
-      ...sharedNavbar,
-      title: 'ZeroAlloc.Mediator',
-    },
-    footer: sharedFooter,
-  },
-
-  presets: [
-    [
-      'classic',
-      {
-        docs: {
-          routeBasePath: '/',
-          sidebarPath: './sidebars.ts',
-        },
-        blog: false,
-        theme: {
-          customCss: ['@zeroalloc/theme/index.css', './src/css/custom.css'],
-        },
-      },
-    ],
-  ],
-};
-
-export default config;
+```
+ZeroAlloc.Mediator/
+  docs/
+    index.md          ← intro / getting started
+    installation.md
+    api-reference.md
+    benchmarks.md
+    migration.md      ← migration from MediatR
 ```
 
-**Step 4: Create minimal initial docs**
-
-Replace `apps/docs-mediator/docs/intro.md`:
+Minimum `docs/index.md` for each repo (example for Mediator):
 
 ```md
 ---
@@ -779,82 +740,216 @@ dotnet add package ZeroAlloc.Mediator
 
 ## Quick start
 
-Coming soon — full documentation in progress.
+Coming soon.
 ```
 
-**Step 5: Verify dev server starts**
+Commit and push the `/docs` folder in each library repo before proceeding.
+
+**Step 3: Verify submodule content is accessible**
+
+```bash
+ls repos/mediator/docs/
+```
+
+Expected: `index.md` and other doc files from the library repo.
+
+**Step 4: Commit submodules**
+
+```bash
+git add .gitmodules repos/
+git commit -m "chore: add library repos as git submodules"
+```
+
+---
+
+### Task 7: Scaffold Docusaurus docs sites pointing to submodule docs
+
+**Files:**
+- Create: `apps/docs-mediator/` (and repeat for each library)
+
+**Step 1: Create first Docusaurus app**
+
+```bash
+cd apps
+pnpm create docusaurus@latest docs-mediator classic --typescript
+cd ..
+```
+
+**Step 2: Update package.json**
+
+Edit `apps/docs-mediator/package.json`:
+- Set `"name": "@zeroalloc/docs-mediator"`
+- Add `"@zeroalloc/theme": "workspace:*"` to dependencies
+
+**Step 3: Configure Docusaurus to read docs from the submodule**
+
+Replace `apps/docs-mediator/docusaurus.config.ts`:
+
+```ts
+import type { Config } from '@docusaurus/types';
+import { sharedNavbar, sharedFooter, sharedThemeConfig } from '@zeroalloc/theme/docusaurus';
+
+const config: Config = {
+  title: 'ZeroAlloc.Mediator',
+  tagline: 'Zero-allocation source-generated mediator for .NET',
+  url: 'https://mediator.zeroalloc.net',
+  baseUrl: '/',
+  organizationName: 'ZeroAlloc-Net',
+  projectName: 'ZeroAlloc.Mediator',
+  trailingSlash: false,
+
+  themeConfig: {
+    ...sharedThemeConfig,
+    navbar: { ...sharedNavbar, title: 'ZeroAlloc.Mediator' },
+    footer: sharedFooter,
+  },
+
+  presets: [
+    [
+      'classic',
+      {
+        docs: {
+          routeBasePath: '/',
+          // Read docs from the library repo submodule — not from this app folder
+          path: '../../repos/mediator/docs',
+          sidebarPath: './sidebars.ts',
+        },
+        blog: false,
+        theme: {
+          customCss: ['@zeroalloc/theme/index.css', './src/css/custom.css'],
+        },
+      },
+    ],
+  ],
+};
+
+export default config;
+```
+
+**Step 4: Verify dev server loads docs from submodule**
 
 ```bash
 cd apps/docs-mediator
 pnpm start
 ```
 
-Expected: Docusaurus dev server starts at `http://localhost:3000` with dark theme applied.
+Expected: Docusaurus serves the docs from `repos/mediator/docs/` with dark theme applied.
 
-**Step 6: Commit**
-
-```bash
-cd ../..
-git add apps/docs-mediator
-git commit -m "feat: scaffold docs-mediator Docusaurus site with shared theme"
-```
-
----
-
-### Task 7: Scaffold remaining Docusaurus docs sites
-
-**Files:**
-- Create: `apps/docs-analyzers/`
-- Create: `apps/docs-inject/`
-- Create: `apps/docs-valueobjects/`
-
-**Step 1: Create each site by copying docs-mediator**
+**Step 5: Scaffold remaining docs sites**
 
 ```bash
-cp -r apps/docs-mediator apps/docs-analyzers
-cp -r apps/docs-mediator apps/docs-inject
-cp -r apps/docs-mediator apps/docs-valueobjects
+cd apps
+pnpm create docusaurus@latest docs-analyzers classic --typescript
+pnpm create docusaurus@latest docs-inject classic --typescript
+pnpm create docusaurus@latest docs-valueobjects classic --typescript
+cd ..
 ```
 
-**Step 2: Update each package.json name**
+For each, repeat steps 2–3 with the appropriate values:
 
-- `apps/docs-analyzers/package.json` → `"name": "@zeroalloc/docs-analyzers"`
-- `apps/docs-inject/package.json` → `"name": "@zeroalloc/docs-inject"`
-- `apps/docs-valueobjects/package.json` → `"name": "@zeroalloc/docs-valueobjects"`
+| App | name | title | url | submodule path |
+|---|---|---|---|---|
+| docs-analyzers | `@zeroalloc/docs-analyzers` | `ZeroAlloc.Analyzers` | `https://analyzers.zeroalloc.net` | `../../repos/analyzers/docs` |
+| docs-inject | `@zeroalloc/docs-inject` | `ZeroAlloc.Inject` | `https://inject.zeroalloc.net` | `../../repos/inject/docs` |
+| docs-valueobjects | `@zeroalloc/docs-valueobjects` | `ZeroAlloc.ValueObjects` | `https://valueobjects.zeroalloc.net` | `../../repos/valueobjects/docs` |
 
-**Step 3: Update each docusaurus.config.ts**
-
-For each site, update:
-- `title` → e.g. `'ZeroAlloc.Analyzers'`
-- `tagline` → appropriate tagline
-- `url` → e.g. `'https://analyzers.zeroalloc.net'`
-- `projectName` → e.g. `'ZeroAlloc.Analyzers'`
-- `navbar.title` → e.g. `'ZeroAlloc.Analyzers'`
-
-**Step 4: Update intro.md for each**
-
-Update the intro content to match each library's description from the org profile README.
-
-**Step 5: Install all dependencies from root**
+**Step 6: Install and verify full build**
 
 ```bash
 pnpm install
-```
-
-**Step 6: Verify all sites build**
-
-```bash
 pnpm build
 ```
 
-Expected: All apps build successfully with no errors.
+Expected: All apps build successfully. Each docs site renders content from its library submodule.
 
 **Step 7: Commit**
 
 ```bash
-git add apps/docs-analyzers apps/docs-inject apps/docs-valueobjects
-git commit -m "feat: scaffold docs sites for Analyzers, Inject, and ValueObjects"
+git add apps/
+git commit -m "feat: scaffold Docusaurus docs sites reading from library submodules"
 ```
+
+---
+
+### Task 7b: Set up GitHub Actions to auto-update submodules on library changes
+
+**Files:**
+- Create: `.github/workflows/update-submodules.yml` in `.website` repo
+- Create: `.github/workflows/trigger-website.yml` in each library repo
+
+**Step 1: Add dispatch workflow to `.website`**
+
+Create `.website/.github/workflows/update-submodules.yml`:
+
+```yaml
+name: Update submodules
+
+on:
+  repository_dispatch:
+    types: [submodule-update]
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update all submodules to latest
+        run: git submodule update --remote --merge
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -am "chore: update submodules" && git push
+```
+
+**Step 2: Add trigger workflow to each library repo**
+
+Create `.github/workflows/trigger-website.yml` in each library repo (e.g. `ZeroAlloc.Mediator`):
+
+```yaml
+name: Trigger website rebuild
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to .website repo
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
+          repository: ZeroAlloc-Net/.website
+          event-type: submodule-update
+```
+
+**Step 3: Create the dispatch token**
+
+1. Go to GitHub → Settings → Developer settings → Personal access tokens
+2. Create a fine-grained token with `Actions: write` permission on `ZeroAlloc-Net/.website`
+3. Add it as a secret named `WEBSITE_DISPATCH_TOKEN` in each library repo
+
+**Step 4: Commit workflows**
+
+In `.website`:
+```bash
+git add .github/
+git commit -m "ci: add submodule auto-update workflow"
+git push
+```
+
+In each library repo, commit the trigger workflow.
 
 ---
 
