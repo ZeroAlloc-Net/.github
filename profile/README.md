@@ -32,6 +32,7 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | ZeroAlloc.Results *(coming soon)* | Zero-allocation source-generated discriminated union for result/error flow — no boxing, no `IEnumerable<Error>` | — |
 | ZeroAlloc.Specification *(coming soon)* | Source-generated specifications — compile-time predicate composition, no closure allocations | — |
 | ZeroAlloc.Options *(coming soon)* | Source-generated options validation — replaces data annotation reflection with compile-time generated validators | — |
+| ZeroAlloc.Mapping *(coming soon)* | Source-generated object mapping — zero-allocation compile-time type mappings, no reflection | — |
 
 ---
 
