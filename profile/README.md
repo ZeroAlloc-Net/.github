@@ -27,8 +27,8 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.Analyzers](https://github.com/ZeroAlloc-Net/ZeroAlloc.Analyzers) | Roslyn analyzers for modern .NET performance patterns | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Analyzers.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Analyzers) |
 | [ZeroAlloc.ValueObjects](https://github.com/ZeroAlloc-Net/ZeroAlloc.ValueObjects) | Zero-allocation source-generated ValueObject equality for existing domain types | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.ValueObjects.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.ValueObjects) |
 | [ZeroAlloc.Inject](https://github.com/ZeroAlloc-Net/ZeroAlloc.Inject) | Compile-time dependency injection via Roslyn source generator | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Inject.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Inject) |
-| [ZeroAlloc.Mediator](https://github.com/ZeroAlloc-Net/ZeroAlloc.Mediator) | Zero-allocation mediator library with source-generated dispatch | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Mediator.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Mediator) |
 | [ZeroAlloc.Pipeline](https://github.com/ZeroAlloc-Net/ZeroAlloc.Pipeline) | Shared compile-time pipeline infrastructure — `IPipelineBehavior` interface and Roslyn discovery/emission utilities for ZeroAlloc generators | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Pipeline.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Pipeline) |
+| [ZeroAlloc.Mediator](https://github.com/ZeroAlloc-Net/ZeroAlloc.Mediator) | Zero-allocation mediator library with source-generated dispatch | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Mediator.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Mediator) |
 | [ZeroAlloc.Validation](https://github.com/ZeroAlloc-Net/ZeroAlloc.Validation) | Source-generated validation API — zero allocations, no reflection, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Validation.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Validation) |
 | ZeroAlloc.Results *(coming soon)* | Zero-allocation source-generated discriminated union for result/error flow — no boxing, no `IEnumerable<Error>` | — |
 | ZeroAlloc.Specification *(coming soon)* | Source-generated specifications — compile-time predicate composition, no closure allocations | — |
@@ -123,33 +123,6 @@ var provider = services.BuildZeroAllocInjectServiceProvider();
 
 ---
 
-## ZeroAlloc.Mediator
-
-Compile-time wired mediator for request/response, notifications, and streaming with **zero allocations** on all dispatch paths. Pipeline behaviors are inlined as static nested calls with no closure allocation.
-
-```csharp
-public readonly record struct Ping(string Message) : IRequest<string>;
-
-public class PingHandler : IRequestHandler<Ping, string>
-{
-    public ValueTask<string> Handle(Ping request, CancellationToken ct)
-        => ValueTask.FromResult($"Pong: {request.Message}");
-}
-
-// Generated mediator with strongly-typed Send/Publish/CreateStream overloads
-var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
-```
-
-**Benchmark** (i9-12900HK, .NET 10):
-
-| Scenario | ZeroAlloc.Mediator | MediatR |
-|---|---|---|
-| Send | ~2 ns | ~88 ns |
-| Publish Single | ~6 ns | ~222 ns |
-| Publish Multi | ~5 ns | ~299 ns |
-
----
-
 ## ZeroAlloc.Pipeline
 
 Shared compile-time pipeline infrastructure for the ZeroAlloc ecosystem. Provides the `IPipelineBehavior` marker interface, `PipelineBehaviorAttribute`, and the Roslyn-based discovery and static-lambda-chain emission utilities that **ZeroAlloc.Mediator** and **ZeroAlloc.Validation** build on. All pipeline wiring is resolved at compile time — no reflection, no virtual dispatch, no heap allocation per call.
@@ -183,6 +156,33 @@ public class LoggingBehavior : IPipelineBehavior
 | Static chain | 4.1 ns | 2.3 ns | 2.8 ns | **0 B** |
 | Pre-built delegate chain | 2.2 ns | 9.9 ns | 17.6 ns | 0 B |
 | Speedup | 0.5× | **4.3×** | **6.4×** | — |
+
+---
+
+## ZeroAlloc.Mediator
+
+Compile-time wired mediator for request/response, notifications, and streaming with **zero allocations** on all dispatch paths. Pipeline behaviors are inlined as static nested calls with no closure allocation.
+
+```csharp
+public readonly record struct Ping(string Message) : IRequest<string>;
+
+public class PingHandler : IRequestHandler<Ping, string>
+{
+    public ValueTask<string> Handle(Ping request, CancellationToken ct)
+        => ValueTask.FromResult($"Pong: {request.Message}");
+}
+
+// Generated mediator with strongly-typed Send/Publish/CreateStream overloads
+var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
+```
+
+**Benchmark** (i9-12900HK, .NET 10):
+
+| Scenario | ZeroAlloc.Mediator | MediatR |
+|---|---|---|
+| Send | ~2 ns | ~88 ns |
+| Publish Single | ~6 ns | ~222 ns |
+| Publish Multi | ~5 ns | ~299 ns |
 
 ---
 
