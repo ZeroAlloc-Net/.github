@@ -150,6 +150,42 @@ var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
 
 ---
 
+## ZeroAlloc.Pipeline
+
+Shared compile-time pipeline infrastructure for the ZeroAlloc ecosystem. Provides the `IPipelineBehavior` marker interface, `PipelineBehaviorAttribute`, and the Roslyn-based discovery and static-lambda-chain emission utilities that **ZeroAlloc.Mediator** and **ZeroAlloc.Validation** build on. All pipeline wiring is resolved at compile time — no reflection, no virtual dispatch, no heap allocation per call.
+
+```csharp
+using ZeroAlloc.Pipeline;
+
+[PipelineBehavior(Order = 1)]
+public class LoggingBehavior : IPipelineBehavior
+{
+    public static async ValueTask<TResponse> Handle<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken ct,
+        Func<TRequest, CancellationToken, ValueTask<TResponse>> next)
+    {
+        Console.WriteLine($"Handling {typeof(TRequest).Name}");
+        var response = await next(request, ct);
+        Console.WriteLine($"Handled {typeof(TRequest).Name}");
+        return response;
+    }
+}
+
+// Picked up at compile time by ZeroAlloc.Mediator or ZeroAlloc.Validation
+// No registration, no reflection — wired into the generated pipeline automatically
+```
+
+**Benchmark** (i9-12900HK, .NET 10):
+
+| Scenario | 1 behavior | 3 behaviors | 5 behaviors | Allocated |
+|---|:---:|:---:|:---:|:---:|
+| Static chain | 4.1 ns | 2.3 ns | 2.8 ns | **0 B** |
+| Pre-built delegate chain | 2.2 ns | 9.9 ns | 17.6 ns | 0 B |
+| Speedup | 0.5× | **4.3×** | **6.4×** | — |
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
