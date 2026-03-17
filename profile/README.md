@@ -186,6 +186,45 @@ public class LoggingBehavior : IPipelineBehavior
 
 ---
 
+## ZeroAlloc.Validation
+
+Attribute-based validation with a **source-generated strongly-typed validator** per model. The generator emits the validator class at build time — no reflection at runtime. On the valid path, the entire validation cycle produces zero heap allocations.
+
+```csharp
+using ZeroAlloc.Validation;
+
+[Validate]
+public class CreateOrderRequest
+{
+    [NotEmpty][MaxLength(50)] public string  Reference { get; set; } = "";
+    [GreaterThan(0)]          public decimal Amount    { get; set; }
+    [NotEmpty][EmailAddress]  public string  Email     { get; set; } = "";
+}
+
+// Source generator emits CreateOrderRequestValidator at build time
+var validator = new CreateOrderRequestValidator();
+var result    = validator.Validate(new CreateOrderRequest
+{
+    Reference = "ORD-2026-001",
+    Amount    = 99.99m,
+    Email     = "customer@example.com"
+});
+
+if (!result.IsValid)
+    foreach (ref readonly var f in result.Failures)
+        Console.WriteLine($"{f.PropertyName}: {f.ErrorMessage}");
+```
+
+**Benchmark** (i9-12900HK, .NET 10):
+
+| Scenario | ZeroAlloc.Validation | FluentValidation | Speedup | Allocation (valid) |
+|---|---:|---:|:---:|:---:|
+| Flat model | 6.7 ns | 327 ns | ~49× | **0 B** |
+| Nested model | 10.1 ns | 619 ns | ~61× | **0 B** |
+| Collection (3×) | 14.3 ns | 2,043 ns | ~143× | **0 B** |
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
