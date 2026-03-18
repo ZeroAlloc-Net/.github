@@ -225,6 +225,49 @@ if (!result.IsValid)
 
 ---
 
+## ZeroAlloc.Results
+
+Zero-allocation, no-boxing `Result<T, E>` for .NET 9. All five types — `Result`, `Result<T>`, `Result<T,E>`, `UnitResult<E>`, and `Maybe<T>` — are `readonly struct` values. No heap allocation, no boxing, no GC pressure. Full combinator API: `Map`, `Bind`, `Match`, `Tap`, `Ensure`, `Combine`, each with a `*Async` / `ValueTask` variant, plus LINQ query syntax via `Select` and `SelectMany`.
+
+```csharp
+using ZeroAlloc.Results;
+using ZeroAlloc.Results.Extensions;
+
+// Chain combinators
+var result = GetUser(id)
+    .Ensure(u => u.IsActive, "user is inactive")
+    .Map(u => u.Email)
+    .Bind(email => SendWelcome(email));
+
+// Extract with Match
+string message = result.Match(
+    onSuccess: email => $"Sent to {email}",
+    onFailure: err  => $"Failed: {err}");
+
+// LINQ query syntax
+var greeting =
+    from user    in GetUser(id)
+    from profile in GetProfile(user)
+    select $"Hello, {profile.Name}";
+
+// Async pipelines
+var response = await GetUser(id)
+    .MapAsync(async u  => await LoadPermissions(u))
+    .BindAsync(async p => await BuildToken(p));
+```
+
+**Benchmark** (Windows 11, i9-12900HK, .NET 9 — vs [CSharpFunctionalExtensions](https://github.com/vkhorikov/CSharpFunctionalExtensions) 3.7.0):
+
+| Category | ZeroAlloc.Results | CSharpFunctionalExtensions | Allocated | Speedup |
+|---|---:|---:|:---:|:---:|
+| `Create_Success` | 0.33 ns | 2.89 ns | **0 B** both | **8.7×** |
+| `Create_Failure` | 0.30 ns | 1.44 ns | **0 B** both | **4.8×** |
+| `Map` | 1.09 ns | 1.48 ns | **0 B** both | **1.4×** |
+| `Match` | 0.37 ns | 0.68 ns | **0 B** both | **1.9×** |
+| `Chain` (Map+Bind+Match) | 2.28 ns | 2.45 ns | **0 B** both | **1.1×** |
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
