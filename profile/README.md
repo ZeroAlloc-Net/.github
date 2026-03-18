@@ -268,6 +268,49 @@ var response = await GetUser(id)
 
 ---
 
+## ZeroAlloc.Specification
+
+Source-generated specification pattern for .NET 8+. Decorate a `readonly partial struct` with `[Specification]` — the Roslyn generator emits `And<TOther>()`, `Or<TOther>()`, and `Not()` fluent combinators. Composed specs stay `readonly struct` values: zero heap allocation, no closures. Every spec exposes `ToExpression()` returning `Expression<Func<T, bool>>` for direct use with EF Core `Where()`. Two packages: `ZeroAlloc.Specification` (runtime) + `ZeroAlloc.Specification.Generator` (build-time generator). Compile-time diagnostics ZA001–ZA004 enforce correct usage.
+
+```bash
+dotnet add package ZeroAlloc.Specification
+dotnet add package ZeroAlloc.Specification.Generator
+```
+
+```csharp
+[Specification]
+public readonly partial struct ActiveUserSpec : ISpecification<User>
+{
+    public bool IsSatisfiedBy(User user) => user.IsActive;
+    public Expression<Func<User, bool>> ToExpression() => u => u.IsActive;
+}
+
+[Specification]
+public readonly partial struct PremiumUserSpec : ISpecification<User>
+{
+    private readonly decimal _minSpend;
+    public PremiumUserSpec(decimal minSpend) => _minSpend = minSpend;
+
+    public bool IsSatisfiedBy(User user) => user.TotalSpend >= _minSpend;
+    public Expression<Func<User, bool>> ToExpression()
+    {
+        var min = _minSpend;
+        return u => u.TotalSpend >= min;
+    }
+}
+
+// Fluent composition — zero allocation, composed type is still a readonly struct
+var spec = new ActiveUserSpec().And(new PremiumUserSpec(1000m));
+
+// In-memory
+bool qualifies = spec.IsSatisfiedBy(user);
+
+// EF Core — translates to SQL
+var users = await dbContext.Users.Where(spec.ToExpression()).ToListAsync();
+```
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
