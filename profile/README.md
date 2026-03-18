@@ -115,11 +115,11 @@ var provider = services.BuildZeroAllocInjectServiceProvider();
 
 **Benchmark** (i9-12900HK, .NET 9):
 
-| Scenario | ZeroAlloc.Inject | Microsoft DI |
-|---|---|---|
-| Resolve transient | ~3 ns | ~35 ns |
-| Resolve singleton | ~1 ns | ~8 ns |
-| Open generic (closed at compile time) | ~19 ns | N/A (AOT unsafe) |
+| Scenario | ZeroAlloc.Inject | Microsoft DI | Speedup |
+|---|---|---|:---:|
+| Resolve transient | ~3 ns | ~35 ns | **~12×** |
+| Resolve singleton | ~1 ns | ~8 ns | **8×** |
+| Open generic (closed at compile time) | ~19 ns | N/A (AOT unsafe) | — |
 
 ---
 
