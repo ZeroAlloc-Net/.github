@@ -178,11 +178,11 @@ var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
 
 **Benchmark** (i9-12900HK, .NET 10):
 
-| Scenario | ZeroAlloc.Mediator | MediatR |
-|---|---|---|
-| Send | ~2 ns | ~88 ns |
-| Publish Single | ~6 ns | ~222 ns |
-| Publish Multi | ~5 ns | ~299 ns |
+| Scenario | ZeroAlloc.Mediator | MediatR | Speedup |
+|---|---|---|:---:|
+| Send | ~2 ns | ~88 ns | **44×** |
+| Publish Single | ~6 ns | ~222 ns | **37×** |
+| Publish Multi | ~5 ns | ~299 ns | **~60×** |
 
 ---
 
