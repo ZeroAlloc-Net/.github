@@ -263,7 +263,7 @@ var response = await GetUser(id)
 | `Create_Success` | 0.33 ns | 2.89 ns | **0 B** both | **8.7×** |
 | `Create_Failure` | 0.30 ns | 1.44 ns | **0 B** both | **4.8×** |
 | `Map` | 1.09 ns | 1.48 ns | **0 B** both | **1.4×** |
-| `Match` | 0.37 ns | 0.68 ns | **0 B** both | **1.9×** |
+| `Match` | 0.37 ns | 0.68 ns | **0 B** both | **1.8×** |
 | `Chain` (Map+Bind+Match) | 2.28 ns | 2.45 ns | **0 B** both | **1.1×** |
 
 ---
