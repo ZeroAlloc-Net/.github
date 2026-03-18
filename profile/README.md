@@ -82,14 +82,14 @@ Fine-grained control via `[EqualityMember]` (opt-in) and `[IgnoreEqualityMember]
 
 **Benchmark** (i9-12900HK, .NET 9):
 
-| Method | Mean | Allocated |
-|---|---:|---:|
-| CFE_Equals | 45.2 ns | 96 B |
-| Record_Equals | 3.1 ns | 0 B |
-| **ZeroAlloc_Equals** | **3.1 ns** | **0 B** |
-| CFE_GetHashCode | 38.7 ns | 88 B |
-| Record_GetHashCode | 2.4 ns | 0 B |
-| **ZeroAlloc_GetHashCode** | **2.4 ns** | **0 B** |
+| Method | Mean | Allocated | Speedup vs CFE |
+|---|---:|---:|:---:|
+| CFE_Equals | 45.2 ns | 96 B | — |
+| Record_Equals | 3.1 ns | 0 B | 14.6× |
+| **ZeroAlloc_Equals** | **3.1 ns** | **0 B** | **~15×** |
+| CFE_GetHashCode | 38.7 ns | 88 B | — |
+| Record_GetHashCode | 2.4 ns | 0 B | 16.1× |
+| **ZeroAlloc_GetHashCode** | **2.4 ns** | **0 B** | **~16×** |
 
 ---
 
