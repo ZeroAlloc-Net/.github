@@ -313,6 +313,41 @@ var users = await dbContext.Users.Where(spec.ToExpression()).ToListAsync();
 
 ---
 
+## ZeroAlloc.Collections
+
+Six zero-allocation collection types for .NET, each available as a `ref struct` for stack-only scenarios and as a heap class for use in async code and DI. All collections rent their backing storage from `ArrayPool<T>.Shared` and return it on `Dispose()`. Every type exposes `AsSpan()` and `AsReadOnlySpan()` for zero-copy inner loops. An optional source generator can emit additional type-specific collection variants and `ref struct` enumerators at compile time — no reflection, fully Native AOT compatible.
+
+```csharp
+using ZeroAlloc.Collections;
+
+// PooledList — growable, ArrayPool-backed; zero heap allocation for the backing array
+using var list = new PooledList<int>(capacity: 64);
+list.Add(1);
+list.Add(2);
+list.Add(3);
+foreach (var item in list)
+    Console.WriteLine(item);
+
+// RingBuffer — fixed-capacity circular buffer for producer/consumer queues
+using var ring = new RingBuffer<string>(capacity: 4);
+ring.TryWrite("alpha");
+ring.TryWrite("beta");
+ring.TryWrite("gamma");
+while (ring.TryRead(out var item))
+    Console.WriteLine(item); // alpha, beta, gamma
+```
+
+| Type | Ref Struct | Heap Variant | Description |
+|---|---|---|---|
+| `PooledList<T>` | Yes | `HeapPooledList<T>` | Pool-backed growable list |
+| `RingBuffer<T>` | Yes | `HeapRingBuffer<T>` | Fixed-capacity circular buffer |
+| `SpanDictionary<TKey, TValue>` | Yes | `HeapSpanDictionary<TKey, TValue>` | Open-addressing hash map |
+| `PooledStack<T>` | Yes | `HeapPooledStack<T>` | Pool-backed LIFO stack |
+| `PooledQueue<T>` | Yes | `HeapPooledQueue<T>` | Pool-backed FIFO queue |
+| `FixedSizeList<T>` | Yes | `HeapFixedSizeList<T>` | Stack-allocated fixed-capacity list |
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
