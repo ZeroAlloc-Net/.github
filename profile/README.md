@@ -348,6 +348,44 @@ while (ring.TryRead(out var item))
 
 ---
 
+## ZeroAlloc.AsyncEvents
+
+Zero-allocation async event primitives for .NET. `AsyncEventHandler<TArgs>` uses a CAS-loop for lock-free handler registration, `ValueTask` throughout for zero `Task` allocation on hot paths, and rents from `ArrayPool` for parallel fan-out dispatch. A source generator handles the `event` property boilerplate: annotate a field with `[AsyncEvent]` and the generator emits the `add`/`remove` accessors.
+
+```csharp
+// Manual — declare backing field, expose event, invoke
+private AsyncEventHandler<OrderPlacedArgs> _orderPlaced = new(InvokeMode.Parallel);
+
+public event AsyncEvent<OrderPlacedArgs> OrderPlaced
+{
+    add    => _orderPlaced.Register(value);
+    remove => _orderPlaced.Unregister(value);
+}
+
+await _orderPlaced.InvokeAsync(new OrderPlacedArgs(orderId), cancellationToken);
+
+// Source generator — [AsyncEvent] generates the event property automatically
+public partial class OrderService
+{
+    [AsyncEvent(InvokeMode.Parallel)]
+    private AsyncEventHandler<OrderPlacedArgs> _orderPlaced = new(InvokeMode.Parallel);
+    // Generated: public event AsyncEvent<OrderPlacedArgs> OrderPlaced { add => ...; remove => ...; }
+}
+```
+
+**Benchmark** (BenchmarkDotNet v0.14.0, .NET 9, X64 — 10 handlers, invoked once):
+
+| Method | Mean | Ratio | Allocated |
+|---|---:|:---:|:---:|
+| Sync multicast delegate (baseline) | 22.96 ns | 1.0× | — |
+| Naive async (`Task.WhenAll`) | 203.48 ns | 8.96× | 280 B |
+| ZeroAlloc Parallel | 70.10 ns | 3.09× | 136 B |
+| **ZeroAlloc Sequential** | **16.10 ns** | **0.71×** | **0 B** |
+
+Sequential mode is **30% faster than a sync multicast delegate** at zero allocations. Parallel mode is **3× faster than naive `Task.WhenAll`** with 51% less memory.
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
