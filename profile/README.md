@@ -386,6 +386,42 @@ Sequential mode is **30% faster than a sync multicast delegate** at zero allocat
 
 ---
 
+## ZeroAlloc.Notify
+
+Source-generated async `INotifyPropertyChanged` for .NET 8+. Decorate a `partial` class with `[NotifyPropertyChangedAsync]` and mark backing fields with `[ObservableProperty]` — the Roslyn generator emits `PropertyChangedAsync`, `CollectionChangedAsync`, and strongly-typed `Set*Async` methods at compile time. No reflection, no virtual dispatch, fully awaitable `ValueTask` handlers. The only INPC framework in the .NET ecosystem where `await vm.SetNameAsync(...)` truly awaits all registered handlers.
+
+```csharp
+[NotifyPropertyChangedAsync]
+public partial class UserViewModel
+{
+    [ObservableProperty] private string _name = "";
+    [ObservableProperty] private int    _age;
+}
+
+var vm = new UserViewModel();
+vm.PropertyChangedAsync += async (args, ct) =>
+{
+    Console.WriteLine($"'{args.PropertyName}' changed: {args.OldValue} → {args.NewValue}");
+    await SaveAuditLogAsync(args, ct);
+};
+
+await vm.SetNameAsync("Alice");
+await vm.SetAgeAsync(30);
+```
+
+**Benchmark** (i9-12900HK, .NET 10, BenchmarkDotNet):
+
+| Method | Mean | Allocated | vs Baseline |
+|---|---:|:---:|:---:|
+| Sync `INotifyPropertyChanged` (baseline) | 21.41 ns | 24 B | — |
+| CommunityToolkit.Mvvm *(sync only)* | 31.27 ns | 0 B | 1.47× slower |
+| PropertyChanged.Fody *(sync only)* | 17.57 ns | 0 B | 1.22× faster |
+| **ZeroAlloc.Notify** *(fully awaitable)* | **61.84 ns** | **48 B** | **only async-first** |
+
+CommunityToolkit and Fody dispatch synchronously and cannot await async handlers. ZeroAlloc.Notify trades ~3× overhead for first-class `ValueTask` semantics — the right trade-off when handlers do I/O.
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
