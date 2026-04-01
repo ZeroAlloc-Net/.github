@@ -32,6 +32,10 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.Validation](https://github.com/ZeroAlloc-Net/ZeroAlloc.Validation) | Source-generated validation API — zero allocations, no reflection, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Validation.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Validation) |
 | [ZeroAlloc.Results](https://github.com/ZeroAlloc-Net/ZeroAlloc.Results) | Zero-allocation `Result<T, E>` — no boxing, no heap pressure, full combinator API with async and LINQ support | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Results.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Results) |
 | [ZeroAlloc.Specification](https://github.com/ZeroAlloc-Net/ZeroAlloc.Specification) | Source-generated specifications — compile-time `And`/`Or`/`Not` composition, zero closure allocations, EF Core compatible | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Specification.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Specification) |
+| [ZeroAlloc.Collections](https://github.com/ZeroAlloc-Net/ZeroAlloc.Collections) | Zero-allocation pooled collection types — PooledList, RingBuffer, SpanDictionary, PooledStack, PooledQueue, and FixedSizeList with `ref struct` and heap variants | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Collections.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Collections) |
+| [ZeroAlloc.AsyncEvents](https://github.com/ZeroAlloc-Net/ZeroAlloc.AsyncEvents) | Zero-allocation async event primitives — lock-free registration, `ValueTask` invocation, `ArrayPool` parallel dispatch, source-generated `[AsyncEvent]` wiring | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.AsyncEvents.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.AsyncEvents) |
+| [ZeroAlloc.Notify](https://github.com/ZeroAlloc-Net/ZeroAlloc.Notify) | Source-generated async INPC — fully awaitable `PropertyChangedAsync`/`CollectionChangedAsync` dispatch, no reflection, compile-time wiring | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Notify.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Notify) |
+| [ZeroAlloc.Rest](https://github.com/ZeroAlloc-Net/ZeroAlloc.Rest) | Source-generated Native AOT REST client — define an interface, Roslyn emits a type-safe `HttpClient` implementation at compile time, zero reflection at runtime | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Rest.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Rest) |
 
 ---
 
@@ -306,6 +310,162 @@ bool qualifies = spec.IsSatisfiedBy(user);
 // EF Core — translates to SQL
 var users = await dbContext.Users.Where(spec.ToExpression()).ToListAsync();
 ```
+
+---
+
+## ZeroAlloc.Collections
+
+Six zero-allocation collection types for .NET, each available as a `ref struct` for stack-only scenarios and as a heap class for use in async code and DI. All collections rent their backing storage from `ArrayPool<T>.Shared` and return it on `Dispose()`. Every type exposes `AsSpan()` and `AsReadOnlySpan()` for zero-copy inner loops. An optional source generator can emit additional type-specific collection variants and `ref struct` enumerators at compile time — no reflection, fully Native AOT compatible.
+
+```csharp
+using ZeroAlloc.Collections;
+
+// PooledList — growable, ArrayPool-backed; zero heap allocation for the backing array
+using var list = new PooledList<int>(capacity: 64);
+list.Add(1);
+list.Add(2);
+list.Add(3);
+foreach (var item in list)
+    Console.WriteLine(item);
+
+// RingBuffer — fixed-capacity circular buffer for producer/consumer queues
+using var ring = new RingBuffer<string>(capacity: 4);
+ring.TryWrite("alpha");
+ring.TryWrite("beta");
+ring.TryWrite("gamma");
+while (ring.TryRead(out var item))
+    Console.WriteLine(item); // alpha, beta, gamma
+```
+
+| Type | Ref Struct | Heap Variant | Description |
+|---|---|---|---|
+| `PooledList<T>` | Yes | `HeapPooledList<T>` | Pool-backed growable list |
+| `RingBuffer<T>` | Yes | `HeapRingBuffer<T>` | Fixed-capacity circular buffer |
+| `SpanDictionary<TKey, TValue>` | Yes | `HeapSpanDictionary<TKey, TValue>` | Open-addressing hash map |
+| `PooledStack<T>` | Yes | `HeapPooledStack<T>` | Pool-backed LIFO stack |
+| `PooledQueue<T>` | Yes | `HeapPooledQueue<T>` | Pool-backed FIFO queue |
+| `FixedSizeList<T>` | Yes | `HeapFixedSizeList<T>` | Stack-allocated fixed-capacity list |
+
+---
+
+## ZeroAlloc.AsyncEvents
+
+Zero-allocation async event primitives for .NET. `AsyncEventHandler<TArgs>` uses a CAS-loop for lock-free handler registration, `ValueTask` throughout for zero `Task` allocation on hot paths, and rents from `ArrayPool` for parallel fan-out dispatch. A source generator handles the `event` property boilerplate: annotate a field with `[AsyncEvent]` and the generator emits the `add`/`remove` accessors.
+
+```csharp
+// Manual — declare backing field, expose event, invoke
+private AsyncEventHandler<OrderPlacedArgs> _orderPlaced = new(InvokeMode.Parallel);
+
+public event AsyncEvent<OrderPlacedArgs> OrderPlaced
+{
+    add    => _orderPlaced.Register(value);
+    remove => _orderPlaced.Unregister(value);
+}
+
+await _orderPlaced.InvokeAsync(new OrderPlacedArgs(orderId), cancellationToken);
+
+// Source generator — [AsyncEvent] generates the event property automatically
+public partial class OrderService
+{
+    [AsyncEvent(InvokeMode.Parallel)]
+    private AsyncEventHandler<OrderPlacedArgs> _orderPlaced = new(InvokeMode.Parallel);
+    // Generated: public event AsyncEvent<OrderPlacedArgs> OrderPlaced { add => ...; remove => ...; }
+}
+```
+
+**Benchmark** (BenchmarkDotNet v0.14.0, .NET 9, X64 — 10 handlers, invoked once):
+
+| Method | Mean | Ratio | Allocated |
+|---|---:|:---:|:---:|
+| Sync multicast delegate (baseline) | 22.96 ns | 1.0× | — |
+| Naive async (`Task.WhenAll`) | 203.48 ns | 8.96× | 280 B |
+| ZeroAlloc Parallel | 70.10 ns | 3.09× | 136 B |
+| **ZeroAlloc Sequential** | **16.10 ns** | **0.71×** | **0 B** |
+
+Sequential mode is **30% faster than a sync multicast delegate** at zero allocations. Parallel mode is **3× faster than naive `Task.WhenAll`** with 51% less memory.
+
+---
+
+## ZeroAlloc.Notify
+
+Source-generated async `INotifyPropertyChanged` for .NET 8+. Decorate a `partial` class with `[NotifyPropertyChangedAsync]` and mark backing fields with `[ObservableProperty]` — the Roslyn generator emits `PropertyChangedAsync`, `CollectionChangedAsync`, and strongly-typed `Set*Async` methods at compile time. No reflection, no virtual dispatch, fully awaitable `ValueTask` handlers. The only INPC framework in the .NET ecosystem where `await vm.SetNameAsync(...)` truly awaits all registered handlers.
+
+```csharp
+[NotifyPropertyChangedAsync]
+public partial class UserViewModel
+{
+    [ObservableProperty] private string _name = "";
+    [ObservableProperty] private int    _age;
+}
+
+var vm = new UserViewModel();
+vm.PropertyChangedAsync += async (args, ct) =>
+{
+    Console.WriteLine($"'{args.PropertyName}' changed: {args.OldValue} → {args.NewValue}");
+    await SaveAuditLogAsync(args, ct);
+};
+
+await vm.SetNameAsync("Alice");
+await vm.SetAgeAsync(30);
+```
+
+**Benchmark** (i9-12900HK, .NET 10, BenchmarkDotNet):
+
+| Method | Mean | Allocated | vs Baseline |
+|---|---:|:---:|:---:|
+| Sync `INotifyPropertyChanged` (baseline) | 21.41 ns | 24 B | — |
+| CommunityToolkit.Mvvm *(sync only)* | 31.27 ns | 0 B | 1.47× slower |
+| PropertyChanged.Fody *(sync only)* | 17.57 ns | 0 B | 1.22× faster |
+| **ZeroAlloc.Notify** *(fully awaitable)* | **61.84 ns** | **48 B** | **only async-first** |
+
+CommunityToolkit and Fody dispatch synchronously and cannot await async handlers. ZeroAlloc.Notify trades ~3× overhead for first-class `ValueTask` semantics — the right trade-off when handlers do I/O.
+
+---
+
+## ZeroAlloc.Rest
+
+Source-generated, Native AOT-compatible REST client for .NET 10+. Decorate an interface with `[ZeroAllocRestClient]` and annotate methods with `[Get]`, `[Post]`, `[Delete]`, etc. — the Roslyn generator emits a sealed `*Client` class at compile time. No runtime reflection, no dynamic proxies, no `DynamicMethod`. Path, query, body, and header parameters are handled via attributes. Returns integrate with `ZeroAlloc.Results` (`Result<T, HttpError>`) for typed error handling without exceptions on 4xx/5xx responses.
+
+```csharp
+[ZeroAllocRestClient]
+public interface IUserApi
+{
+    [Get("/users/{id}")]
+    Task<UserDto> GetUserAsync(int id, CancellationToken ct = default);
+
+    [Get("/users")]
+    Task<List<UserDto>> ListUsersAsync([Query] string? name = null, CancellationToken ct = default);
+
+    [Post("/users")]
+    Task<UserDto> CreateUserAsync([Body] CreateUserRequest request, CancellationToken ct = default);
+
+    [Delete("/users/{id}")]
+    Task DeleteUserAsync(int id, CancellationToken ct = default);
+}
+
+// DI registration — AddIUserApi extension generated by the source generator
+builder.Services.AddIUserApi(options =>
+{
+    options.BaseAddress = new Uri("https://api.example.com");
+    options.UseSerializer<SystemTextJsonSerializer>();
+});
+
+// Inject and use — no reflection, no proxies at runtime
+public class UserService(IUserApi api)
+{
+    public Task<UserDto> GetAsync(int id) => api.GetUserAsync(id);
+}
+```
+
+**Benchmark** (i9-12900HK, .NET 10.0.4, Windows 11, X64 — in-memory handler, no real network I/O):
+
+| Method | Mean | vs Refit | Allocated |
+|---|---:|:---:|---:|
+| Raw `HttpClient` (baseline) | 1,648 ns | — | 1.38 KB |
+| **ZeroAlloc.Rest GET** | **1,933 ns** | **3.2× faster** | 1.74 KB |
+| Refit GET | 6,123 ns | 1× | 3.03 KB |
+| **ZeroAlloc.Rest QueryParam** | **2,474 ns** | **5.5× faster** | 1.85 KB |
+| Refit QueryParam | 13,509 ns | 1× | 3.67 KB |
 
 ---
 
