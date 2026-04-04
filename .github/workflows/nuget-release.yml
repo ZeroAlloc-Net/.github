@@ -1,0 +1,69 @@
+name: NuGet Release - Benchmark & Publish
+
+on:
+  workflow_call:
+    inputs:
+      repo-name:
+        description: 'Repository name (e.g., ZeroAlloc.EventSourcing)'
+        required: true
+        type: string
+      has-benchmarks:
+        description: 'Whether repo has benchmarks project'
+        required: false
+        type: boolean
+        default: false
+      nuget-org:
+        description: 'NuGet organization'
+        required: true
+        type: string
+    secrets:
+      NUGET_API_KEY:
+        description: 'NuGet API key for publishing'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Run benchmarks
+        if: ${{ inputs.has-benchmarks == true }}
+        run: dotnet run -c Release --project src/${{ inputs.repo-name }}.Benchmarks/
+
+      - name: Upload benchmark results
+        if: ${{ inputs.has-benchmarks == true && always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: src/${{ inputs.repo-name }}.Benchmarks/BenchmarkDotNet.Artifacts/
+
+      - name: Publish to NuGet
+        run: |
+          dotnet nuget push "**/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
