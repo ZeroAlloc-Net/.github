@@ -51,7 +51,7 @@ jobs:
 
       - name: Upload benchmark results
         if: ${{ inputs.has-benchmarks == true && always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results
           path: src/${{ inputs.repo-name }}.Benchmarks/BenchmarkDotNet.Artifacts/
