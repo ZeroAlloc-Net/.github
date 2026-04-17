@@ -36,6 +36,9 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.AsyncEvents](https://github.com/ZeroAlloc-Net/ZeroAlloc.AsyncEvents) | Zero-allocation async event primitives — lock-free registration, `ValueTask` invocation, `ArrayPool` parallel dispatch, source-generated `[AsyncEvent]` wiring | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.AsyncEvents.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.AsyncEvents) |
 | [ZeroAlloc.Notify](https://github.com/ZeroAlloc-Net/ZeroAlloc.Notify) | Source-generated async INPC — fully awaitable `PropertyChangedAsync`/`CollectionChangedAsync` dispatch, no reflection, compile-time wiring | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Notify.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Notify) |
 | [ZeroAlloc.Rest](https://github.com/ZeroAlloc-Net/ZeroAlloc.Rest) | Source-generated Native AOT REST client — define an interface, Roslyn emits a type-safe `HttpClient` implementation at compile time, zero reflection at runtime | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Rest.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Rest) |
+| [ZeroAlloc.Serialisation](https://github.com/ZeroAlloc-Net/ZeroAlloc.Serialisation) | Source-generated `ISerializer<T>` — annotate a type, Roslyn emits a sealed serializer and DI extension. Backends for MemoryPack, MessagePack, and System.Text.Json. No reflection, no boxing, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Serialisation.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Serialisation) |
+| [ZeroAlloc.EventSourcing](https://github.com/ZeroAlloc-Net/ZeroAlloc.EventSourcing) | Zero-allocation event sourcing — struct-based aggregate state, in-memory and SQL backends, source-generated boilerplate, optional OpenTelemetry instrumentation | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.EventSourcing.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.EventSourcing) |
+| [ZeroAlloc.Telemetry](https://github.com/ZeroAlloc-Net/ZeroAlloc.Telemetry) | Source-generated OpenTelemetry proxy — annotate an interface, Roslyn emits a BCL `ActivitySource` + `Meter` decorator. No OTel SDK dependency, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Telemetry.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Telemetry) |
 
 ---
 
@@ -466,6 +469,110 @@ public class UserService(IUserApi api)
 | Refit GET | 6,123 ns | 1× | 3.03 KB |
 | **ZeroAlloc.Rest QueryParam** | **2,474 ns** | **5.5× faster** | 1.85 KB |
 | Refit QueryParam | 13,509 ns | 1× | 3.67 KB |
+
+---
+
+## ZeroAlloc.Serialisation
+
+Source-generated, zero-allocation serialization for .NET 8+. Annotate a type with `[ZeroAllocSerializable]` — the Roslyn generator emits a sealed `{TypeName}Serializer : ISerializer<T>` and a per-type DI extension method. A `SerializerDispatcher` covering all annotated types in the assembly is also generated. No reflection, no `byte[]` intermediate allocation, fully Native AOT safe.
+
+```csharp
+[MemoryPackable]
+[ZeroAllocSerializable(SerializationFormat.MemoryPack)]
+public partial class OrderPlacedEvent
+{
+    public Guid OrderId { get; set; }
+    public decimal Total { get; set; }
+}
+
+// Generated: OrderPlacedEventSerializer + AddOrderPlacedEventSerializer()
+services.AddSerializerDispatcher();  // covers all [ZeroAllocSerializable] types in the assembly
+
+public class OrderStore(ISerializer<OrderPlacedEvent> serializer)
+{
+    public void Write(IBufferWriter<byte> writer, OrderPlacedEvent evt)
+        => serializer.Serialize(writer, evt);         // writes directly to IBufferWriter<byte> — zero intermediate byte[]
+
+    public OrderPlacedEvent? Read(ReadOnlySpan<byte> bytes)
+        => serializer.Deserialize(bytes);
+}
+```
+
+Backends: `ZeroAlloc.Serialisation.MemoryPack`, `ZeroAlloc.Serialisation.MessagePack`, `ZeroAlloc.Serialisation.SystemTextJson`.
+
+---
+
+## ZeroAlloc.EventSourcing
+
+Zero-allocation event sourcing for .NET 8+. Struct-based aggregate state keeps the read path off the heap. In-memory and SQL backends (SQL Server / PostgreSQL). Source generator emits aggregate boilerplate. First-class integration with `ZeroAlloc.Serialisation` for AOT-safe event serialization.
+
+```csharp
+// Define aggregate state as a struct — zero heap allocation on read
+public readonly record struct OrderState(string OrderId, decimal Total, bool Placed);
+
+public sealed class OrderAggregate : Aggregate<OrderState>
+{
+    public Result<Unit, string> Place(string orderId, decimal total)
+    {
+        if (State.Placed) return "already placed";
+        Raise(new OrderPlacedEvent(orderId, total));
+        return Unit.Value;
+    }
+
+    protected override OrderState Apply(OrderState state, object @event) => @event switch
+    {
+        OrderPlacedEvent e => state with { OrderId = e.OrderId, Total = e.Total, Placed = true },
+        _ => state,
+    };
+}
+
+// Wire up DI
+services
+    .AddEventSourcing()
+    .UseInMemoryEventStore();   // swap for .UsePostgreSqlEventStore(cs) in production
+
+// Use
+var repo = sp.GetRequiredService<IAggregateRepository<OrderAggregate, string>>();
+var order = new OrderAggregate();
+order.Place("order-1", 99.99m);
+await repo.SaveAsync("order-1", order, CancellationToken.None);
+```
+
+Optional `ZeroAlloc.EventSourcing.Telemetry` package adds BCL-based `ActivitySource` + `Meter` instrumentation with no OpenTelemetry SDK dependency.
+
+---
+
+## ZeroAlloc.Telemetry
+
+Source-generated OpenTelemetry proxy for .NET 8+. Annotate an interface with `[Instrument]` — the Roslyn generator emits a sealed decorator class that wraps an inner implementation and records `ActivitySource` spans, `Counter<long>` increments, and `Histogram<double>` timings per method. No OpenTelemetry SDK dependency, no reflection, fully Native AOT safe.
+
+```csharp
+[Instrument("MyApp.Orders")]
+public interface IOrderService
+{
+    [Trace("order.create")]
+    [Count("orders.created")]
+    ValueTask<OrderId> CreateOrderAsync(CreateOrderCommand cmd, CancellationToken ct);
+
+    [Trace("order.get")]
+    [Histogram("order.get_ms")]
+    ValueTask<Order> GetOrderAsync(OrderId id, CancellationToken ct);
+}
+
+// Generated: OrderServiceInstrumented — wire up as a DI decorator
+services.AddSingleton<IOrderService>(sp =>
+    new OrderServiceInstrumented(sp.GetRequiredService<OrderServiceImpl>()));
+
+// Add any exporter — the library emits standard BCL ActivitySource and Meter
+builder.Services.AddOpenTelemetry()
+    .WithTracing(t => t.AddSource("MyApp.Orders").AddOtlpExporter())
+    .WithMetrics(m => m.AddMeter("MyApp.Orders").AddOtlpExporter());
+```
+
+| Call outcome | `[Trace]` span | `[Count]` counter | `[Histogram]` |
+|---|---|---|---|
+| Success | Started + stopped | Incremented by 1 | Records elapsed ms |
+| Exception | Started + Error status set | Not incremented | Records elapsed ms |
 
 ---
 
