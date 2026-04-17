@@ -576,6 +576,20 @@ builder.Services.AddOpenTelemetry()
 
 ---
 
+## Sponsor
+
+ZeroAlloc-Net is maintained in spare time. If these libraries save you allocations, GC pauses, or migration effort, consider sponsoring to keep the work going.
+
+[![Sponsor ZeroAlloc-Net](https://img.shields.io/badge/Sponsor_ZeroAlloc--Net-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/ZeroAlloc-Net)
+[![Sponsor Marcel Roozekrans](https://img.shields.io/badge/Sponsor_Marcel-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/MarcelRoozekrans)
+
+**What sponsorship funds:**
+- Continued maintenance and .NET version upgrades across all packages
+- New packages and source generator improvements
+- Keeping everything Native AOT-compatible as the ecosystem evolves
+
+---
+
 <p align="center">
   <sub>Built with ❤️ for the Native AOT era of .NET</sub>
 </p>
