@@ -39,6 +39,12 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.Serialisation](https://github.com/ZeroAlloc-Net/ZeroAlloc.Serialisation) | Source-generated `ISerializer<T>` — annotate a type, Roslyn emits a sealed serializer and DI extension. Backends for MemoryPack, MessagePack, and System.Text.Json. No reflection, no boxing, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Serialisation.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Serialisation) |
 | [ZeroAlloc.EventSourcing](https://github.com/ZeroAlloc-Net/ZeroAlloc.EventSourcing) | Zero-allocation event sourcing — struct-based aggregate state, in-memory and SQL backends, source-generated boilerplate, optional OpenTelemetry instrumentation | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.EventSourcing.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.EventSourcing) |
 | [ZeroAlloc.Telemetry](https://github.com/ZeroAlloc-Net/ZeroAlloc.Telemetry) | Source-generated OpenTelemetry proxy — annotate an interface, Roslyn emits a BCL `ActivitySource` + `Meter` decorator. No OTel SDK dependency, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Telemetry.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Telemetry) |
+| [ZeroAlloc.Scheduling](https://github.com/ZeroAlloc-Net/ZeroAlloc.Scheduling) | Source-generated background job scheduler — `[Job]` annotation wires up executor, DI registration, and recurring startup at compile time. InMemory, EF Core, and Redis backends | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Scheduling.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Scheduling) |
+| [ZeroAlloc.Cache](https://github.com/ZeroAlloc-Net/ZeroAlloc.Cache) | Source-generated caching proxy — annotate an interface with `[Cache]`, Roslyn emits a transparent proxy with zero allocation on the cache-hit path. `IMemoryCache` and `HybridCache` backends | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Cache.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Cache) |
+| [ZeroAlloc.Resilience](https://github.com/ZeroAlloc-Net/ZeroAlloc.Resilience) | Source-generated resilience policies — `[Retry]`, `[Timeout]`, `[RateLimit]`, and `[CircuitBreaker]` compose into a generated proxy with zero heap allocation on the happy path | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Resilience.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Resilience) |
+| [ZeroAlloc.StateMachine](https://github.com/ZeroAlloc-Net/ZeroAlloc.StateMachine) | Source-generated finite state machines — `[Transition<TState, TTrigger>]` attributes lower to a `switch` expression over tuples. No dictionary, no delegate dispatch, AOT-safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.StateMachine.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.StateMachine) |
+| [ZeroAlloc.Outbox](https://github.com/ZeroAlloc-Net/ZeroAlloc.Outbox) | Source-generated transactional outbox — `[OutboxMessage]` emits a typed writer and dispatcher bridge. EF Core (production) and InMemory (tests) stores, polling worker, exponential-backoff retry, dead-letter | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Outbox.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Outbox) |
+| [ZeroAlloc.Saga](https://github.com/ZeroAlloc-Net/ZeroAlloc.Saga) | Source-generated long-running process orchestration — declare a saga as a `partial class`, the generator emits state machine, notification handlers, and dispatch wiring. Compensation runs in reverse on failure | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Saga.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Saga) |
 
 ---
 
@@ -573,6 +579,124 @@ builder.Services.AddOpenTelemetry()
 |---|---|---|---|
 | Success | Started + stopped | Incremented by 1 | Records elapsed ms |
 | Exception | Started + Error status set | Not incremented | Records elapsed ms |
+
+---
+
+## ZeroAlloc.Scheduling
+
+Source-generated background job scheduler for .NET 8 and .NET 10. Decorate any class with `[Job]` and the generator emits the executor, DI registration, and recurring startup wiring — no reflection, no convention scanning at runtime. InMemory, EF Core, and Redis backends.
+
+```csharp
+[Job(Every = Every.Hour)]
+public sealed class CleanupExpiredSessionsJob : IJob
+{
+    public ValueTask ExecuteAsync(JobContext ctx, CancellationToken ct)
+        => /* work */ ValueTask.CompletedTask;
+}
+
+// Generated DI extension wires executor + recurring schedule
+builder.Services.AddZeroAllocScheduling().UseInMemory();
+```
+
+---
+
+## ZeroAlloc.Cache
+
+Source-generated zero-allocation caching proxy for .NET. Annotate an interface with `[Cache]`, the Roslyn generator emits a proxy that transparently intercepts every method call — **zero heap allocation on the cache-hit path**. Backed by `IMemoryCache` by default, with optional `HybridCache` (L1 + L2) opt-in per method. AOT-safe.
+
+```csharp
+[Cache(TtlMs = 60_000)]
+public interface IProductRepository
+{
+    ValueTask<Product?> GetByIdAsync(int id, CancellationToken ct);
+
+    [Cache(TtlMs = 300_000, MaxEntries = 1_000)]
+    ValueTask<IReadOnlyList<Product>> SearchAsync(string query, CancellationToken ct);
+}
+
+// One line wires proxy + backing implementation
+builder.Services.AddIProductRepositoryCache<ProductRepositoryImpl>();
+```
+
+Inject `IProductRepository` anywhere — caching is transparent to the caller.
+
+---
+
+## ZeroAlloc.Resilience
+
+Source-generated, zero-allocation resilience policies for .NET. Add `[Retry]`, `[Timeout]`, `[RateLimit]`, and `[CircuitBreaker]` to an interface — the generator emits a proxy that composes all policies in declaration order with **no heap allocation on the happy path** (beyond the unavoidable `CancellationTokenSource` for timeout). AOT-safe.
+
+```csharp
+[Retry(MaxAttempts = 3, BackoffMs = 200, Jitter = true, PerAttemptTimeoutMs = 1_000)]
+[Timeout(Ms = 5_000)]
+[RateLimit(MaxPerSecond = 100, BurstSize = 10)]
+[CircuitBreaker(MaxFailures = 5, ResetMs = 1_000, HalfOpenProbes = 1, Fallback = nameof(FetchFallback))]
+public interface IExternalService
+{
+    ValueTask<string> FetchAsync(string id, CancellationToken ct);
+    ValueTask<string> FetchFallback(string id, CancellationToken ct);
+}
+```
+
+---
+
+## ZeroAlloc.StateMachine
+
+Source-generated, zero-allocation finite state machines for .NET. Add `[StateMachine]` and `[Transition<TState, TTrigger>]` attributes to a `partial` class or struct — the generator emits a `TryFire(TTrigger)` method as a `switch` expression over `(TState, TTrigger)` tuples. No dictionary, no delegate dispatch, no heap allocation on the transition path. AOT-safe.
+
+```csharp
+public enum State   { Idle, Pending, Done }
+public enum Trigger { Submit, Pay }
+
+[StateMachine(InitialState = nameof(State.Idle))]
+[Transition<State, Trigger>(From = State.Idle,    On = Trigger.Submit, To = State.Pending)]
+[Transition<State, Trigger>(From = State.Pending, On = Trigger.Pay,    To = State.Done)]
+[Terminal<State>(State = State.Done)]
+public partial class OrderMachine { }
+
+var machine = new OrderMachine();
+machine.TryFire(Trigger.Submit);   // → State.Pending
+machine.TryFire(Trigger.Pay);      // → State.Done (terminal)
+```
+
+---
+
+## ZeroAlloc.Outbox
+
+Source-generated transactional outbox for .NET. Annotate a message type with `[OutboxMessage]` and the Roslyn generator emits a typed writer and dispatcher bridge — no reflection, no boxing, AOT-safe. Backed by EF Core (production) or in-memory (tests), with a built-in polling worker, exponential-backoff retry, and dead-letter support.
+
+```csharp
+[OutboxMessage]
+public sealed record OrderPlaced(Guid OrderId, decimal Total);
+
+// Inside a transaction — write the row in the same DbContext as your domain change
+await _outbox.WriteAsync(new OrderPlaced(orderId, total), ct);
+await _db.SaveChangesAsync(ct);
+
+// Polling worker dispatches in the background — at-least-once delivery, retry + DLQ baked in
+services.AddZeroAllocOutbox().UseEfCore<MyDbContext>();
+```
+
+---
+
+## ZeroAlloc.Saga
+
+Source-generated long-running process orchestration for .NET. Declare a saga as a `partial class` decorated with `[Saga]` — the generator emits state-machine code, notification handlers, and dispatch wiring. Compensation runs in reverse on failure. No reflection, no open-generic resolution at runtime. v1.1 ships durable persistence via `ZeroAlloc.Saga.EfCore` (single shared `SagaInstance` table, row-version OCC, retry-on-conflict). InMemory remains the default; switch to EfCore with one fluent call.
+
+```csharp
+[Saga]
+public partial class OrderFulfillmentSaga
+{
+    public OrderId OrderId { get; private set; }
+
+    [StartedBy] public ValueTask Handle(OrderPlaced evt, ISagaContext ctx) { /* ... */ }
+    [Step]      public ValueTask Handle(PaymentReceived evt, ISagaContext ctx) { /* ... */ }
+    [Compensate(nameof(Handle))] public ValueTask CompensatePayment(ISagaContext ctx) { /* ... */ }
+}
+
+// Default in-memory; swap to durable EF Core with one call
+services.AddZeroAllocSaga().UseEfCore<MyDbContext>();
+```
 
 ---
 
