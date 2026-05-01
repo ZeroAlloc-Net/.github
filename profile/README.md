@@ -45,6 +45,7 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.StateMachine](https://github.com/ZeroAlloc-Net/ZeroAlloc.StateMachine) | Source-generated finite state machines — `[Transition<TState, TTrigger>]` attributes lower to a `switch` expression over tuples. No dictionary, no delegate dispatch, AOT-safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.StateMachine.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.StateMachine) |
 | [ZeroAlloc.Outbox](https://github.com/ZeroAlloc-Net/ZeroAlloc.Outbox) | Source-generated transactional outbox — `[OutboxMessage]` emits a typed writer and dispatcher bridge. EF Core (production) and InMemory (tests) stores, polling worker, exponential-backoff retry, dead-letter | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Outbox.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Outbox) |
 | [ZeroAlloc.Saga](https://github.com/ZeroAlloc-Net/ZeroAlloc.Saga) | Source-generated long-running process orchestration — declare a saga as a `partial class`, the generator emits state machine, notification handlers, and dispatch wiring. Compensation runs in reverse on failure | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Saga.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Saga) |
+| [ZeroAlloc.Authorization](https://github.com/ZeroAlloc-Net/ZeroAlloc.Authorization) | Authorization primitives — `[Authorize]` attribute + `IAuthorizationPolicy` contract + `ISecurityContext` for hosts to extend. Source-of-truth contract package consumed by AI.Sentinel and the planned ZeroAlloc.Mediator.Authorization | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Authorization.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Authorization) |
 
 ---
 
@@ -697,6 +698,28 @@ public partial class OrderFulfillmentSaga
 // Default in-memory; swap to durable EF Core with one call
 services.AddZeroAllocSaga().UseEfCore<MyDbContext>();
 ```
+
+---
+
+## ZeroAlloc.Authorization
+
+Source-of-truth authorization primitives for .NET. Five contract types — `ISecurityContext`, `IAuthorizationPolicy`, `[Authorize]`, `[AuthorizationPolicy]`, `AnonymousSecurityContext` — designed to be shared across hosts that need a unified policy contract. Pure contracts: no dispatch, no DI registration, no scanning. Hosts (AI.Sentinel for tool-call authz, the planned ZeroAlloc.Mediator.Authorization for handler authz) provide those.
+
+```csharp
+[AuthorizationPolicy("AdminOnly")]
+public sealed class AdminOnlyPolicy : IAuthorizationPolicy
+{
+    public bool IsAuthorized(ISecurityContext ctx) => ctx.Roles.Contains("Admin");
+}
+
+public sealed class UserService
+{
+    [Authorize("AdminOnly")]
+    public Task DeleteUserAsync(string userId) { /* ... */ }
+}
+```
+
+For richer deny information, override `Evaluate` to return `UnitResult<AuthorizationFailure>` with a structured `Code` (e.g. `"policy.deny.role"`) and optional `Reason`. Native AOT compatible. Zero allocation on all four hot-path methods (`IsAuthorized`, `IsAuthorizedAsync`, `Evaluate`, `EvaluateAsync` happy path).
 
 ---
 
