@@ -1,0 +1,83 @@
+name: API Compatibility
+
+# Reusable workflow that gates a library's public API against its
+# latest stable published version on nuget.org. Consume from a repo's
+# ci.yml like:
+#
+#   api-compat:
+#     uses: ZeroAlloc-Net/.github/.github/workflows/api-compat.yml@main
+#     with:
+#       package-id: ZeroAlloc.Mediator
+#       csproj-path: src/ZeroAlloc.Mediator/ZeroAlloc.Mediator.csproj
+#
+# The job:
+#   1. Builds + packs the current source with a sentinel version
+#      (9999.0.0) so CP0003 (assembly version >= baseline) never fires
+#      while still surfacing real API breakages via CP0001/CP0002/CP0006.
+#   2. Downloads the latest stable published nupkg from nuget.org's
+#      v3-flatcontainer endpoint (no `nuget` CLI needed).
+#   3. Runs Microsoft.DotNet.ApiCompat.Tool's package-vs-package
+#      comparison.
+#
+# Skips cleanly with exit 0 if no stable version is on nuget.org yet
+# (e.g. a repo that hasn't shipped 1.0).
+
+on:
+  workflow_call:
+    inputs:
+      package-id:
+        description: 'NuGet package ID (e.g. ZeroAlloc.Mediator). Case-insensitive — used to build the v3-flatcontainer URL.'
+        required: true
+        type: string
+      csproj-path:
+        description: 'Path to the runtime library csproj relative to the repo root (e.g. src/ZeroAlloc.Mediator/ZeroAlloc.Mediator.csproj).'
+        required: true
+        type: string
+      dotnet-version:
+        description: '.NET SDK version installed on the runner. Default 10.0.x.'
+        required: false
+        type: string
+        default: '10.0.x'
+
+permissions:
+  contents: read
+
+jobs:
+  api-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Install ApiCompat tool
+        run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
+
+      - name: Build current (sentinel assembly version >= any baseline so CP0003 never fires)
+        run: dotnet build "${{ inputs.csproj-path }}" -c Release -p:Version=9999.0.0 -p:AssemblyVersion=9999.0.0.0 -p:FileVersion=9999.0.0.0
+
+      - name: Pack current
+        run: dotnet pack "${{ inputs.csproj-path }}" -c Release --no-build --output ./current -p:Version=9999.0.0 -p:AssemblyVersion=9999.0.0.0 -p:FileVersion=9999.0.0.0
+
+      - name: Compare against latest published version
+        # Take the highest stable published version overall (no major filter,
+        # exclude prerelease tags). Steady-state this gates each x.y.(z+1)
+        # patch against x.y.z and each x.(y+1).0 minor against x.y.(latest).
+        # Major bumps temporarily fire on intentional breaks — accept that
+        # as the cost of correctness.
+        run: |
+          pkg_lower=$(echo "${{ inputs.package-id }}" | tr '[:upper:]' '[:lower:]')
+          latest=$(curl -s "https://api.nuget.org/v3-flatcontainer/${pkg_lower}/index.json" \
+                   | jq -r '.versions[]' | grep -vE '(-|preview|alpha|beta|rc)' | tail -1)
+          if [ -z "$latest" ]; then
+            echo "No stable releases on nuget.org yet — skipping baseline check."
+            exit 0
+          fi
+          echo "Comparing against published version: $latest"
+          mkdir -p ./baseline
+          curl -sL "https://api.nuget.org/v3-flatcontainer/${pkg_lower}/${latest}/${pkg_lower}.${latest}.nupkg" \
+               -o ./baseline/baseline.nupkg
+          apicompat package ./current/*.nupkg --baseline-package ./baseline/baseline.nupkg
