@@ -21,6 +21,14 @@ name: API Compatibility
 #
 # Skips cleanly with exit 0 if no stable version is on nuget.org yet
 # (e.g. a repo that hasn't shipped 1.0).
+#
+# Intentional breaks (e.g. major-version bumps) can be suppressed by
+# checking in an `apicompat-suppressions.xml` at the repo root with the
+# format documented at:
+#   https://learn.microsoft.com/en-us/dotnet/fundamentals/apicompat/diagnostic-ids
+# When present, the file is passed to apicompat via --suppression-file so
+# listed CP-codes are downgraded from errors. Each entry should carry a
+# Justification so future readers know why the break was permitted.
 
 on:
   workflow_call:
@@ -80,4 +88,11 @@ jobs:
           mkdir -p ./baseline
           curl -sL "https://api.nuget.org/v3-flatcontainer/${pkg_lower}/${latest}/${pkg_lower}.${latest}.nupkg" \
                -o ./baseline/baseline.nupkg
-          apicompat package ./current/*.nupkg --baseline-package ./baseline/baseline.nupkg
+
+          suppression_args=()
+          if [ -f ./apicompat-suppressions.xml ]; then
+            echo "Found apicompat-suppressions.xml — applying."
+            suppression_args+=(--suppression-file ./apicompat-suppressions.xml)
+          fi
+
+          apicompat package ./current/*.nupkg --baseline-package ./baseline/baseline.nupkg "${suppression_args[@]}"
