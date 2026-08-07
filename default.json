@@ -28,18 +28,207 @@
     "patch release.",
     "",
     "internalChecksFilter is left at its default of strict, so updates still inside",
-    "the three-day wait are held back rather than raised and then blocked."
+    "the three-day wait are held back rather than raised and then blocked.",
+    "",
+    "vulnerabilityAlerts carries no prPriority: Renovate only accepts prPriority",
+    "inside packageRules, and renovate-config-validator rejects it here. It was",
+    "silently ignored rather than prioritising anything. Security PRs already skip",
+    "the three-day wait and any schedule, which is what actually gets them out",
+    "quickly; prPriority would only have reordered a queue held back by prConcurrentLimit.",
+    "",
+    "packageRules group each ZeroAlloc family into one PR. Every repo releases with",
+    "a single-component release-please manifest, so all the packages it publishes",
+    "share one version and ship together — and several of them cannot be upgraded",
+    "apart. A source generator bumped without its runtime emits code the older",
+    "runtime cannot satisfy: ZeroAlloc.Saga#92 took ZeroAlloc.Mediator.Generator to",
+    "v5 on its own and failed with CS0051, while the sibling PR carrying only",
+    "ZeroAlloc.Mediator went green. Neither half could merge alone, and no amount",
+    "of retrying either PR would have fixed it.",
+    "",
+    "separateMajorMinor is off for these groups. Grouping alone is not enough: a",
+    "family whose runtime offers a minor and whose generator offers a major would",
+    "still be split back into two PRs by the default major/minor separation, which",
+    "is the exact failure this is meant to prevent.",
+    "",
+    "Groups are keyed on the publishing repo rather than the package prefix, which",
+    "is why ZeroAlloc.TypeConversions sits in the ORM group — it ships from",
+    "ZeroAlloc.ORM at ORM's version, so it moves when ORM moves.",
+    "",
+    "A new ZeroAlloc repo with no rule here keeps today's behaviour of one PR per",
+    "package. That is safe for a family with no generator; add a rule when the",
+    "repo starts publishing one."
   ],
 
   "minimumReleaseAge": "3 days",
+
+  "packageRules": [
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Analyzers($|\\.)/i"],
+      "groupName": "ZeroAlloc.Analyzers",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.AsyncEvents($|\\.)/i"],
+      "groupName": "ZeroAlloc.AsyncEvents",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Authorization($|\\.)/i"],
+      "groupName": "ZeroAlloc.Authorization",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Cache($|\\.)/i"],
+      "groupName": "ZeroAlloc.Cache",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Collections($|\\.)/i"],
+      "groupName": "ZeroAlloc.Collections",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.EventSourcing($|\\.)/i"],
+      "groupName": "ZeroAlloc.EventSourcing",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Flux($|\\.)/i"],
+      "groupName": "ZeroAlloc.Flux",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Inject($|\\.)/i"],
+      "groupName": "ZeroAlloc.Inject",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Mapping($|\\.)/i"],
+      "groupName": "ZeroAlloc.Mapping",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Mediator($|\\.)/i"],
+      "groupName": "ZeroAlloc.Mediator",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Notify($|\\.)/i"],
+      "groupName": "ZeroAlloc.Notify",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.ORM($|\\.)/i",
+        "/^ZeroAlloc\\.TypeConversions($|\\.)/i"
+      ],
+      "groupName": "ZeroAlloc.ORM",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Outbox($|\\.)/i"],
+      "groupName": "ZeroAlloc.Outbox",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Pipeline($|\\.)/i"],
+      "groupName": "ZeroAlloc.Pipeline",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Resilience($|\\.)/i"],
+      "groupName": "ZeroAlloc.Resilience",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Rest($|\\.)/i"],
+      "groupName": "ZeroAlloc.Rest",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Results($|\\.)/i"],
+      "groupName": "ZeroAlloc.Results",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Saga($|\\.)/i"],
+      "groupName": "ZeroAlloc.Saga",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Scheduling($|\\.)/i"],
+      "groupName": "ZeroAlloc.Scheduling",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Serialisation($|\\.)/i"],
+      "groupName": "ZeroAlloc.Serialisation",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Specification($|\\.)/i"],
+      "groupName": "ZeroAlloc.Specification",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.StateMachine($|\\.)/i"],
+      "groupName": "ZeroAlloc.StateMachine",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Telemetry($|\\.)/i"],
+      "groupName": "ZeroAlloc.Telemetry",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.TestHelpers($|\\.)/i"],
+      "groupName": "ZeroAlloc.TestHelpers",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.Validation($|\\.)/i"],
+      "groupName": "ZeroAlloc.Validation",
+      "separateMajorMinor": false
+    },
+    {
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": ["/^ZeroAlloc\\.ValueObjects($|\\.)/i"],
+      "groupName": "ZeroAlloc.ValueObjects",
+      "separateMajorMinor": false
+    }
+  ],
 
   "vulnerabilityAlerts": {
     "enabled": true,
     "schedule": [],
     "minimumReleaseAge": null,
     "semanticCommitType": "fix",
-    "labels": ["dependencies", "security"],
-    "prPriority": 10
+    "labels": ["dependencies", "security"]
   },
 
   "osvVulnerabilityAlerts": true
