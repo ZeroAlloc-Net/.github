@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Shared ZeroAlloc Renovate defaults. Extend from a repo with:",
+    "  \"extends\": [\"config:recommended\", \"github>ZeroAlloc-Net/.github\"]",
+    "and drop that repo's own \"schedule\" — this replaces it.",
+    "",
+    "Updates flow continuously, but nothing is raised until a release has been out",
+    "for three days. That is the point at which a bad or yanked release has usually",
+    "been found, so it buys the same protection a weekly batch window did without",
+    "the batching: an update published on Tuesday arrives Friday rather than",
+    "waiting for the following Monday.",
+    "",
+    "Security fixes opt out of both the wait and any schedule. minimumReleaseAge is",
+    "set back to null under vulnerabilityAlerts, because otherwise the three-day",
+    "wait would inherit and delay exactly the updates that must not wait.",
+    "",
+    "schedule: [] means 'any time', so a security PR is still raised immediately",
+    "even in a repo that keeps a schedule of its own. Without it, a repo scheduled",
+    "'before 6am on monday' parks security fixes under Awaiting Schedule until the",
+    "next window — which is how ZeroAlloc.Serialisation sat with a high-severity",
+    "MessagePack advisory while audit-as-error made main unbuildable, unnoticed",
+    "because CI only runs on push and pull_request.",
+    "",
+    "semanticCommitType fix, rather than Renovate's default chore: release-please",
+    "treats chore as non-releasable, so a security fix would merge to main and",
+    "never ship — the package consumers restore would stay vulnerable. fix cuts a",
+    "patch release.",
+    "",
+    "internalChecksFilter is left at its default of strict, so updates still inside",
+    "the three-day wait are held back rather than raised and then blocked."
+  ],
+
+  "minimumReleaseAge": "3 days",
+
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": [],
+    "minimumReleaseAge": null,
+    "semanticCommitType": "fix",
+    "labels": ["dependencies", "security"],
+    "prPriority": 10
+  },
+
+  "osvVulnerabilityAlerts": true
+}
