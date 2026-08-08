@@ -69,6 +69,47 @@
 
   "packageRules": [
     {
+      "description": [
+        "ASP.NET Core and EF Core ship one package major per .NET major, and that",
+        "major is the ONLY framework it supports: Microsoft.EntityFrameworkCore",
+        "10.0.10 and Microsoft.AspNetCore.Components.Web 10.0.10 each carry a single",
+        "lib/net10.0. A repo that still targets net8.0 or net9.0 therefore cannot take",
+        "them, and the restore fails with NU1202 before anything compiles.",
+        "",
+        "Projects here express that by referencing the same package once per target",
+        "framework behind a Condition — ZeroAlloc.Scheduling.Dashboard.Blazor pins",
+        "8.0.2*, 9.0.1* and 10.0.1* for net8.0, net9.0 and net10.0 respectively.",
+        "Renovate does not read the Condition attribute, so it sees three references",
+        "to one package and offers to move all three to the newest major. The net10.0",
+        "one is already correct; the other two become unrestorable.",
+        "",
+        "These two rules keep each reference inside the major stream it is already on,",
+        "which is what the Condition already decided. A reference on 10.x still moves",
+        "freely within 10.x, so net10.0 targets keep getting updates.",
+        "",
+        "Deliberately NOT applied to Microsoft.Extensions.*: those are multi-targeted.",
+        "Microsoft.Extensions.Http 10.0.10 ships net462, netstandard2.0, net8.0, net9.0",
+        "and net10.0, so constraining it would block upgrades that restore perfectly."
+      ],
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": [
+        "/^Microsoft\\.AspNetCore($|\\.)/i",
+        "/^Microsoft\\.EntityFrameworkCore($|\\.)/i"
+      ],
+      "matchCurrentVersion": "/^8\\./",
+      "allowedVersions": "<9.0.0"
+    },
+    {
+      "description": "Second half of the pair above — see that rule for the reasoning.",
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": [
+        "/^Microsoft\\.AspNetCore($|\\.)/i",
+        "/^Microsoft\\.EntityFrameworkCore($|\\.)/i"
+      ],
+      "matchCurrentVersion": "/^9\\./",
+      "allowedVersions": "<10.0.0"
+    },
+    {
       "matchDatasources": ["nuget"],
       "matchPackageNames": ["/^ZeroAlloc\\.Analyzers($|\\.)/i"],
       "groupName": "ZeroAlloc.Analyzers",
