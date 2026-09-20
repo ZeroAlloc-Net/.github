@@ -70,6 +70,38 @@
   "packageRules": [
     {
       "description": [
+        "First-party packages skip the three-day wait.",
+        "",
+        "minimumReleaseAge exists so that a bad or yanked release surfaces before it",
+        "reaches us. That reasoning is about releases we do not control. These come",
+        "from repositories in this org and from MarcelRoozekrans' own account, so they",
+        "have already been through our CI and review; the wait adds latency without",
+        "adding information.",
+        "",
+        "It also works against us. Several of these families must move together — a",
+        "source generator bumped without its runtime emits code the older runtime",
+        "cannot satisfy — and a cross-repo fix is only really shipped once every",
+        "consumer has taken it. Three days per hop makes a chain of first-party",
+        "packages take over a week to settle.",
+        "",
+        "ZeroAlloc packages are owned on nuget.org by ZeroAlloc.NET; AI.Sentinel,",
+        "AdoNet.Async, MemoryLens and RoslynCodeLens by MarcelRoozekrans. A bare",
+        "ZeroAlloc package id also exists, hence ($|\\.) rather than a trailing dot.",
+        "",
+        "Everything not matched here keeps the three-day wait."
+      ],
+      "matchDatasources": ["nuget"],
+      "matchPackageNames": [
+        "/^ZeroAlloc($|\\.)/i",
+        "/^AI\\.Sentinel($|\\.)/i",
+        "/^AdoNet\\.Async($|\\.)/i",
+        "/^MemoryLens($|\\.)/i",
+        "/^RoslynCodeLens($|\\.)/i"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": [
         "ASP.NET Core and EF Core ship one package major per .NET major, and that",
         "major is the ONLY framework it supports: Microsoft.EntityFrameworkCore",
         "10.0.10 and Microsoft.AspNetCore.Components.Web 10.0.10 each carry a single",
