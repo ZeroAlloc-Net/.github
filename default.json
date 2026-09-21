@@ -402,31 +402,6 @@
       ],
       "groupName": "ZeroAlloc.ValueObjects",
       "separateMajorMinor": false
-    },
-    {
-      "description": [
-        "Leave global.json alone. With rollForward set, the sdk version field is a",
-        "FLOOR, not a target: the newest installed SDK is selected regardless. Renovate",
-        "raising it to the latest patch therefore buys nothing and breaks any runner",
-        "whose image has not caught up yet, because rollForward only ever rolls",
-        "forward, never back to an older SDK.",
-        "",
-        "That is not hypothetical. A publish failed on a runner whose newest SDK was",
-        "10.0.400 against a floor of 10.0.401, leaving a tagged release with no package",
-        "on nuget.org and needing a manual rescue. Other repos with the identical pin",
-        "succeeded in the same window, which is the signature of a race against the",
-        "runner-image rollout rather than a deterministic break.",
-        "",
-        "ZeroAlloc.Templates#372 lowered the floor back to the GA band, and Renovate",
-        "raised it straight back to 10.0.401 in #384 a few hours later. Fixing the",
-        "value without disabling the manager just loses the fix at the next SDK patch.",
-        "",
-        "Raise the floor by hand when a repo genuinely needs a newer SDK feature."
-      ],
-      "matchManagers": [
-        "dotnet-sdk"
-      ],
-      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
