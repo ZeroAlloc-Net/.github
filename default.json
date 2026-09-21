@@ -3,7 +3,7 @@
   "description": [
     "Shared ZeroAlloc Renovate defaults. Extend from a repo with:",
     "  \"extends\": [\"config:recommended\", \"github>ZeroAlloc-Net/.github\"]",
-    "and drop that repo's own \"schedule\" — this replaces it.",
+    "and drop that repo's own \"schedule\" \u2014 this replaces it.",
     "",
     "Updates flow continuously, but nothing is raised until a release has been out",
     "for three days. That is the point at which a bad or yanked release has usually",
@@ -18,13 +18,13 @@
     "schedule: [] means 'any time', so a security PR is still raised immediately",
     "even in a repo that keeps a schedule of its own. Without it, a repo scheduled",
     "'before 6am on monday' parks security fixes under Awaiting Schedule until the",
-    "next window — which is how ZeroAlloc.Serialisation sat with a high-severity",
+    "next window \u2014 which is how ZeroAlloc.Serialisation sat with a high-severity",
     "MessagePack advisory while audit-as-error made main unbuildable, unnoticed",
     "because CI only runs on push and pull_request.",
     "",
     "semanticCommitType fix, rather than Renovate's default chore: release-please",
     "treats chore as non-releasable, so a security fix would merge to main and",
-    "never ship — the package consumers restore would stay vulnerable. fix cuts a",
+    "never ship \u2014 the package consumers restore would stay vulnerable. fix cuts a",
     "patch release.",
     "",
     "internalChecksFilter is left at its default of strict, so updates still inside",
@@ -37,7 +37,7 @@
     "quickly; prPriority would only have reordered a queue held back by prConcurrentLimit.",
     "",
     "packageRules group each ZeroAlloc family into one PR, keyed on the publishing",
-    "repo. Most repos — ZeroAlloc.Mediator and ZeroAlloc.ORM among them — release",
+    "repo. Most repos \u2014 ZeroAlloc.Mediator and ZeroAlloc.ORM among them \u2014 release",
     "with a single-component manifest, so everything they publish shares one version",
     "and ships together. Some, such as ZeroAlloc.Saga, are multi-component and version",
     "their packages independently; grouping still holds there, because a group PR",
@@ -57,16 +57,14 @@
     "is the exact failure this is meant to prevent.",
     "",
     "Groups are keyed on the publishing repo rather than the package prefix, which",
-    "is why ZeroAlloc.TypeConversions sits in the ORM group — it ships from",
+    "is why ZeroAlloc.TypeConversions sits in the ORM group \u2014 it ships from",
     "ZeroAlloc.ORM at ORM's version, so it moves when ORM moves.",
     "",
     "A new ZeroAlloc repo with no rule here keeps today's behaviour of one PR per",
     "package. That is safe for a family with no generator; add a rule when the",
     "repo starts publishing one."
   ],
-
   "minimumReleaseAge": "3 days",
-
   "packageRules": [
     {
       "description": [
@@ -78,9 +76,9 @@
         "have already been through our CI and review; the wait adds latency without",
         "adding information.",
         "",
-        "It also works against us. Several of these families must move together — a",
+        "It also works against us. Several of these families must move together \u2014 a",
         "source generator bumped without its runtime emits code the older runtime",
-        "cannot satisfy — and a cross-repo fix is only really shipped once every",
+        "cannot satisfy \u2014 and a cross-repo fix is only really shipped once every",
         "consumer has taken it. Three days per hop makes a chain of first-party",
         "packages take over a week to settle.",
         "",
@@ -90,7 +88,9 @@
         "",
         "Everything not matched here keeps the three-day wait."
       ],
-      "matchDatasources": ["nuget"],
+      "matchDatasources": [
+        "nuget"
+      ],
       "matchPackageNames": [
         "/^ZeroAlloc($|\\.)/i",
         "/^AI\\.Sentinel($|\\.)/i",
@@ -109,7 +109,7 @@
         "them, and the restore fails with NU1202 before anything compiles.",
         "",
         "Projects here express that by referencing the same package once per target",
-        "framework behind a Condition — ZeroAlloc.Scheduling.Dashboard.Blazor pins",
+        "framework behind a Condition \u2014 ZeroAlloc.Scheduling.Dashboard.Blazor pins",
         "8.0.2*, 9.0.1* and 10.0.1* for net8.0, net9.0 and net10.0 respectively.",
         "Renovate does not read the Condition attribute, so it sees three references",
         "to one package and offers to move all three to the newest major. The net10.0",
@@ -118,7 +118,7 @@
         "For these packages the major is a TARGET FRAMEWORK decision, not a dependency",
         "one: it changes only when a net11.0 target is added along with its own",
         "conditional reference. So no major is ever raised automatically, while minor",
-        "and patch updates keep flowing in every stream — including 10.x, so net10.0",
+        "and patch updates keep flowing in every stream \u2014 including 10.x, so net10.0",
         "targets still receive EF Core and ASP.NET Core updates.",
         "",
         "This replaces an earlier pair of rules that capped 8.x below 9 and 9.x below",
@@ -130,82 +130,132 @@
         "Microsoft.Extensions.Http 10.0.10 ships net462, netstandard2.0, net8.0, net9.0",
         "and net10.0, so constraining it would block upgrades that restore perfectly."
       ],
-      "matchDatasources": ["nuget"],
+      "matchDatasources": [
+        "nuget"
+      ],
       "matchPackageNames": [
         "/^Microsoft\\.AspNetCore($|\\.)/i",
         "/^Microsoft\\.EntityFrameworkCore($|\\.)/i"
       ],
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "enabled": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Analyzers($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Analyzers($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Analyzers",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.AsyncEvents($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.AsyncEvents($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.AsyncEvents",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Authorization($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Authorization($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Authorization",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Cache($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Cache($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Cache",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Collections($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Collections($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Collections",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.EventSourcing($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.EventSourcing($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.EventSourcing",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Flux($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Flux($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Flux",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Inject($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Inject($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Inject",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Mapping($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Mapping($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Mapping",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Mediator($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Mediator($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Mediator",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Notify($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Notify($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Notify",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
+      "matchDatasources": [
+        "nuget"
+      ],
       "matchPackageNames": [
         "/^ZeroAlloc\\.ORM($|\\.)/i",
         "/^ZeroAlloc\\.TypeConversions($|\\.)/i"
@@ -214,98 +264,180 @@
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Outbox($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Outbox($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Outbox",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Pipeline($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Pipeline($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Pipeline",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Resilience($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Resilience($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Resilience",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Rest($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Rest($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Rest",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Results($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Results($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Results",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Saga($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Saga($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Saga",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Scheduling($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Scheduling($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Scheduling",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Serialisation($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Serialisation($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Serialisation",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Specification($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Specification($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Specification",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.StateMachine($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.StateMachine($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.StateMachine",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Telemetry($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Telemetry($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Telemetry",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.TestHelpers($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.TestHelpers($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.TestHelpers",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.Validation($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.Validation($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.Validation",
       "separateMajorMinor": false
     },
     {
-      "matchDatasources": ["nuget"],
-      "matchPackageNames": ["/^ZeroAlloc\\.ValueObjects($|\\.)/i"],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc\\.ValueObjects($|\\.)/i"
+      ],
       "groupName": "ZeroAlloc.ValueObjects",
       "separateMajorMinor": false
+    },
+    {
+      "description": [
+        "Leave global.json alone. With rollForward set, the sdk version field is a",
+        "FLOOR, not a target: the newest installed SDK is selected regardless. Renovate",
+        "raising it to the latest patch therefore buys nothing and breaks any runner",
+        "whose image has not caught up yet, because rollForward only ever rolls",
+        "forward, never back to an older SDK.",
+        "",
+        "That is not hypothetical. A publish failed on a runner whose newest SDK was",
+        "10.0.400 against a floor of 10.0.401, leaving a tagged release with no package",
+        "on nuget.org and needing a manual rescue. Other repos with the identical pin",
+        "succeeded in the same window, which is the signature of a race against the",
+        "runner-image rollout rather than a deterministic break.",
+        "",
+        "ZeroAlloc.Templates#372 lowered the floor back to the GA band, and Renovate",
+        "raised it straight back to 10.0.401 in #384 a few hours later. Fixing the",
+        "value without disabling the manager just loses the fix at the next SDK patch.",
+        "",
+        "Raise the floor by hand when a repo genuinely needs a newer SDK feature."
+      ],
+      "matchManagers": [
+        "dotnet-sdk"
+      ],
+      "enabled": false
     }
   ],
-
   "vulnerabilityAlerts": {
     "enabled": true,
     "schedule": [],
     "minimumReleaseAge": null,
     "semanticCommitType": "fix",
-    "labels": ["dependencies", "security"]
+    "labels": [
+      "dependencies",
+      "security"
+    ]
   },
-
   "osvVulnerabilityAlerts": true
 }
