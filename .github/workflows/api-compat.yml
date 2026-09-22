@@ -1,46 +1,67 @@
 name: API Compatibility
 
-# Reusable workflow that gates a library's public API against its
-# latest stable published version on nuget.org. Consume from a repo's
-# ci.yml like:
+# Reusable workflow that gates a repo's public API against the latest stable
+# published version on nuget.org.
+#
+# By default it discovers every packable project under src/ and checks them
+# all. Consume from a repo's ci.yml with no inputs at all:
 #
 #   api-compat:
 #     uses: ZeroAlloc-Net/.github/.github/workflows/api-compat.yml@main
-#     with:
-#       package-id: ZeroAlloc.Mediator
-#       csproj-path: src/ZeroAlloc.Mediator/ZeroAlloc.Mediator.csproj
 #
-# The job:
-#   1. Builds + packs the current source with a sentinel version
-#      (9999.0.0) so CP0003 (assembly version >= baseline) never fires
-#      while still surfacing real API breakages via CP0001/CP0002/CP0006.
+# Discovery rather than a declared list is deliberate. The previous version
+# took a single package-id, so every repo guarded exactly one package and the
+# satellites -- .Orm, .EfCore, .Redis, .Dashboard -- were unchecked. That is
+# where provider work lands and signatures move most, and it let a binary
+# break ship in ZeroAlloc.Outbox.Orm 2.7.0: a dialect added as an optional
+# parameter deleted the shorter overload from the assembly. A declared list
+# would have had the same failure mode as the hardcoded pack lists did --
+# correct on the day it was written, stale the next time a package landed.
+# See ZeroAlloc-Net/.github#30.
+#
+# Per package the job:
+#   1. Builds + packs the current source with a sentinel version (9999.0.0)
+#      so CP0003 (assembly version >= baseline) never fires while still
+#      surfacing real API breakages via CP0001/CP0002/CP0006.
 #   2. Downloads the latest stable published nupkg from nuget.org's
 #      v3-flatcontainer endpoint (no `nuget` CLI needed).
-#   3. Runs Microsoft.DotNet.ApiCompat.Tool's package-vs-package
-#      comparison.
+#   3. Runs Microsoft.DotNet.ApiCompat.Tool's package-vs-package comparison.
 #
-# Skips cleanly with exit 0 if no stable version is on nuget.org yet
-# (e.g. a repo that hasn't shipped 1.0).
+# Packages with nothing published yet are skipped, as are analyzer packages,
+# which ship no lib/ assemblies to compare. Both are reported in the job
+# summary rather than passing quietly -- a gate that silently checks nothing
+# is worse than no gate, because it reads as coverage.
 #
-# Intentional breaks (e.g. major-version bumps) can be suppressed by
-# checking in an `apicompat-suppressions.xml` at the repo root with the
-# format documented at:
+# Intentional breaks (e.g. major-version bumps) can be suppressed by checking
+# in an `apicompat-suppressions.xml` at the repo root with the format at:
 #   https://learn.microsoft.com/en-us/dotnet/fundamentals/apicompat/diagnostic-ids
-# When present, the file is passed to apicompat via --suppression-file so
-# listed CP-codes are downgraded from errors. Each entry should carry a
-# Justification so future readers know why the break was permitted.
+# Each entry should carry a Justification so future readers know why the break
+# was permitted.
 
 on:
   workflow_call:
     inputs:
       package-id:
-        description: 'NuGet package ID (e.g. ZeroAlloc.Mediator). Case-insensitive — used to build the v3-flatcontainer URL.'
-        required: true
+        description: >-
+          Optional. Check only this package instead of discovering every
+          packable project. Kept so existing callers keep working; prefer
+          passing nothing so new packages are covered automatically.
+        required: false
         type: string
+        default: ''
       csproj-path:
-        description: 'Path to the runtime library csproj relative to the repo root (e.g. src/ZeroAlloc.Mediator/ZeroAlloc.Mediator.csproj).'
-        required: true
+        description: 'Optional. Path to the csproj for package-id. Required only when package-id is set.'
+        required: false
         type: string
+        default: ''
+      exclude:
+        description: >-
+          Optional newline-separated list of package IDs to skip, for packages
+          that legitimately cannot be compared. Excluded IDs are named in the
+          job summary so the exemption stays visible.
+        required: false
+        type: string
+        default: ''
       dotnet-version:
         description: '.NET SDK version installed on the runner. Default 10.0.x.'
         required: false
@@ -51,8 +72,105 @@ permissions:
   contents: read
 
 jobs:
-  api-compat:
+  discover:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.find.outputs.matrix }}
+      count: ${{ steps.find.outputs.count }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Find packable projects
+        id: find
+        env:
+          SINGLE_ID: ${{ inputs.package-id }}
+          SINGLE_CSPROJ: ${{ inputs.csproj-path }}
+          EXCLUDE: ${{ inputs.exclude }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$SINGLE_ID" ]; then
+            if [ -z "$SINGLE_CSPROJ" ]; then
+              echo "::error::package-id was set without csproj-path."
+              exit 1
+            fi
+            echo "Explicit single-package mode: $SINGLE_ID"
+            echo "matrix=$(jq -cn --arg id "$SINGLE_ID" --arg p "$SINGLE_CSPROJ" \
+              '[{"id":$id,"csproj":$p}]')" >> "$GITHUB_OUTPUT"
+            echo "count=1" >> "$GITHUB_OUTPUT"
+            {
+              echo "### API compatibility"
+              echo "Single-package mode: \`$SINGLE_ID\`. Other packages in this repo are NOT checked."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          entries='[]'
+          skipped=""
+
+          for csproj in src/*/*.csproj; do
+            [ -e "$csproj" ] || continue
+            name=$(basename "$csproj" .csproj)
+
+            # PackageId is set explicitly in every repo, but fall back to the
+            # file name rather than dropping a package if one ever omits it.
+            id=$(sed -n 's:.*<PackageId>\(.*\)</PackageId>.*:\1:p' "$csproj" | head -1)
+            [ -n "$id" ] || id="$name"
+
+            if grep -qi '<IsPackable>[[:space:]]*false' "$csproj"; then
+              skipped="$skipped\n- \`$id\` — IsPackable=false"
+              continue
+            fi
+
+            # Analyzer and generator packages ship under analyzers/dotnet/cs with
+            # no lib/ assemblies, so a package-vs-package comparison has nothing
+            # to read and would pass without checking anything.
+            if grep -qi '<IncludeBuildOutput>[[:space:]]*false' "$csproj"; then
+              skipped="$skipped\n- \`$id\` — analyzer package, no lib/ assemblies to compare"
+              continue
+            fi
+
+            if [ -n "$EXCLUDE" ] && echo "$EXCLUDE" | grep -qxF "$id"; then
+              skipped="$skipped\n- \`$id\` — excluded by caller"
+              continue
+            fi
+
+            entries=$(jq -c --arg id "$id" --arg p "$csproj" '. + [{"id":$id,"csproj":$p}]' <<<"$entries")
+          done
+
+          count=$(jq 'length' <<<"$entries")
+          echo "Discovered $count packable project(s)."
+          jq -r '.[] | "  " + .id + "  <- " + .csproj' <<<"$entries"
+
+          echo "matrix=$entries" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### API compatibility"
+            echo ""
+            echo "Checking **$count** package(s):"
+            jq -r '.[] | "- `" + .id + "`"' <<<"$entries"
+            if [ -n "$skipped" ]; then
+              echo ""
+              echo "Not checked:"
+              printf '%b\n' "$skipped"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no packable projects were discovered under src/ -- api-compat would check nothing"
+            exit 1
+          fi
+
+  api-compat:
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      # One genuine break must not hide the others behind a cancelled matrix.
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    name: api-compat (${{ matrix.package.id }})
     steps:
       - uses: actions/checkout@v7
 
@@ -65,10 +183,10 @@ jobs:
         run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
 
       - name: Build current (sentinel assembly version >= any baseline so CP0003 never fires)
-        run: dotnet build "${{ inputs.csproj-path }}" -c Release -p:Version=9999.0.0 -p:AssemblyVersion=9999.0.0.0 -p:FileVersion=9999.0.0.0
+        run: dotnet build "${{ matrix.package.csproj }}" -c Release -p:Version=9999.0.0 -p:AssemblyVersion=9999.0.0.0 -p:FileVersion=9999.0.0.0
 
       - name: Pack current
-        run: dotnet pack "${{ inputs.csproj-path }}" -c Release --no-build --output ./current -p:Version=9999.0.0 -p:AssemblyVersion=9999.0.0.0 -p:FileVersion=9999.0.0.0
+        run: dotnet pack "${{ matrix.package.csproj }}" -c Release --no-build --output ./current -p:Version=9999.0.0 -p:AssemblyVersion=9999.0.0.0 -p:FileVersion=9999.0.0.0
 
       - name: Compare against latest published version
         # Take the highest stable published version overall (no major filter,
@@ -76,15 +194,19 @@ jobs:
         # patch against x.y.z and each x.(y+1).0 minor against x.y.(latest).
         # Major bumps temporarily fire on intentional breaks — accept that
         # as the cost of correctness.
+        env:
+          PACKAGE_ID: ${{ matrix.package.id }}
         run: |
-          pkg_lower=$(echo "${{ inputs.package-id }}" | tr '[:upper:]' '[:lower:]')
+          set -euo pipefail
+          pkg_lower=$(echo "$PACKAGE_ID" | tr '[:upper:]' '[:lower:]')
           latest=$(curl -s "https://api.nuget.org/v3-flatcontainer/${pkg_lower}/index.json" \
-                   | jq -r '.versions[]' | grep -vE '(-|preview|alpha|beta|rc)' | tail -1)
+                   | jq -r '.versions[]?' | grep -vE '(-|preview|alpha|beta|rc)' | tail -1 || true)
           if [ -z "$latest" ]; then
-            echo "No stable releases on nuget.org yet — skipping baseline check."
+            echo "No stable releases of $PACKAGE_ID on nuget.org yet — skipping baseline check."
+            echo "- \`$PACKAGE_ID\` — no published baseline, not compared" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          echo "Comparing against published version: $latest"
+          echo "Comparing $PACKAGE_ID against published version: $latest"
           mkdir -p ./baseline
           curl -sL "https://api.nuget.org/v3-flatcontainer/${pkg_lower}/${latest}/${pkg_lower}.${latest}.nupkg" \
                -o ./baseline/baseline.nupkg
@@ -96,3 +218,4 @@ jobs:
           fi
 
           apicompat package ./current/*.nupkg --baseline-package ./baseline/baseline.nupkg "${suppression_args[@]}"
+          echo "- \`$PACKAGE_ID\` — compared against $latest" >> "$GITHUB_STEP_SUMMARY"
