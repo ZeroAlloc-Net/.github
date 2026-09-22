@@ -107,9 +107,11 @@ jobs:
 
           entries='[]'
           skipped=""
+          considered=0
 
           for csproj in src/*/*.csproj; do
             [ -e "$csproj" ] || continue
+            considered=$((considered + 1))
             name=$(basename "$csproj" .csproj)
 
             # PackageId is set explicitly in every repo, but fall back to the
@@ -157,13 +159,31 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Zero comparable packages has two very different causes, and only
+          # one is a problem.
+          #
+          # No csproj found at all means the repo does not match the layout this
+          # workflow assumes, so the gate would report green having looked at
+          # nothing -- worse than no gate, because it reads as coverage.
+          #
+          # Projects found but all skipped is legitimate: ZeroAlloc.TestHelpers
+          # ships source rather than assemblies, so there is no lib/ to compare
+          # and nothing for apicompat to do. Those repos track their API with
+          # PublicAPI.Shipped.txt and RS0016 instead.
           if [ "$count" -eq 0 ]; then
-            echo "::error::no packable projects were discovered under src/ -- api-compat would check nothing"
-            exit 1
+            if [ "$considered" -eq 0 ]; then
+              echo "::error::no csproj found under src/ -- api-compat would check nothing"
+              exit 1
+            fi
+            echo "::notice::$considered project(s) found, none expose lib/ assemblies -- nothing to compare."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No package in this repo ships lib/ assemblies, so there is nothing for apicompat to compare." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   api-compat:
     needs: discover
+    # Nothing comparable in this repo; discover already explained why.
+    if: needs.discover.outputs.count != '0'
     runs-on: ubuntu-latest
     strategy:
       # One genuine break must not hide the others behind a cancelled matrix.
