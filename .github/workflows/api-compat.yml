@@ -180,7 +180,12 @@ jobs:
             echo "No package in this repo ships lib/ assemblies, so there is nothing for apicompat to compare." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  api-compat:
+  # Named "check", not "api-compat", because the matrix expands this into one
+  # status context per package and every repo's ruleset requires the single
+  # literal context "api-compat / api-compat". Expanding that name would leave
+  # the required check permanently absent and block every PR in the repo. The
+  # stable name lives on the aggregate job below instead.
+  check:
     needs: discover
     # Nothing comparable in this repo; discover already explained why.
     if: needs.discover.outputs.count != '0'
@@ -190,7 +195,7 @@ jobs:
       fail-fast: false
       matrix:
         package: ${{ fromJSON(needs.discover.outputs.matrix) }}
-    name: api-compat (${{ matrix.package.id }})
+    name: check (${{ matrix.package.id }})
     steps:
       - uses: actions/checkout@v7
 
@@ -239,3 +244,35 @@ jobs:
 
           apicompat package ./current/*.nupkg --baseline-package ./baseline/baseline.nupkg "${suppression_args[@]}"
           echo "- \`$PACKAGE_ID\` — compared against $latest" >> "$GITHUB_STEP_SUMMARY"
+
+  # The one status context rulesets require. Its name must not change and must
+  # not be templated: a required context that never appears blocks every PR in
+  # the repo rather than failing it, which is far harder to diagnose.
+  #
+  # Aggregating here also means a repo gaining a package needs no ruleset edit
+  # -- the count of package jobs varies, this job does not. A per-package
+  # required context would go stale exactly the way the single package-id did.
+  api-compat:
+    needs: [discover, check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify every package check passed
+        run: |
+          echo "discover: ${{ needs.discover.result }}"
+          echo "check:    ${{ needs.check.result }}"
+
+          if [ "${{ needs.discover.result }}" != "success" ]; then
+            echo "::error::package discovery failed -- no API comparison ran"
+            exit 1
+          fi
+
+          # 'skipped' is a legitimate pass: discover found projects but none
+          # ship lib/ assemblies, so there was nothing to compare. Any other
+          # non-success means a real break or an infrastructure failure, and
+          # both must fail rather than be waved through.
+          case "${{ needs.check.result }}" in
+            success) echo "All package API checks passed." ;;
+            skipped) echo "No comparable packages in this repo; nothing to check." ;;
+            *)       echo "::error::one or more package API checks failed"; exit 1 ;;
+          esac
