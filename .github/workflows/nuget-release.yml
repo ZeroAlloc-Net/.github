@@ -34,7 +34,12 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.401'
+          # Installs the calling repo's global.json pin. A hardcoded version here
+          # goes stale the moment Renovate bumps global.json in the caller, and
+          # relying on the runner image is how a publish failed on a lagging
+          # image (ZeroAlloc-Net/.github#34) elsewhere in the org.
+          global-json-file: global.json
+          dotnet-version: 10.0.x
 
       - name: Restore dependencies
         run: dotnet restore
