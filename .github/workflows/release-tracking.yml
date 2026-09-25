@@ -1,0 +1,51 @@
+name: Release tracking
+
+# Reusable guard for release PRs. A release PR must mark everything it releases
+# as shipped: the analyzer rules in every AnalyzerReleases.Unshipped.md and the
+# API in every PublicAPI.Unshipped*.txt. The ship-release-tracking reusable
+# workflow commits that move onto the branch; this fails the PR if the move is
+# missing, or if a later commit on the branch adds entries after it. The checkout
+# is the merge ref, so it sees what would land on main. See
+# ZeroAlloc-Net/.github#38.
+#
+# Consume from a repo's ci.yml, gated to release-please PRs:
+#
+#   release-tracking:
+#     if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'release-please--') }}
+#     uses: ZeroAlloc-Net/.github/.github/workflows/release-tracking.yml@main
+#
+# To fix a failure, run the ship step by hand on the release branch and push:
+#   python3 <path to ZeroAlloc-Net/.github>/scripts/ship-release-tracking.py <version>
+
+on:
+  workflow_call:
+    inputs:
+      tool-ref:
+        description: >-
+          Ref of ZeroAlloc-Net/.github to take scripts/ship-release-tracking.py
+          from. Keep it equal to the ref in the `uses:` line.
+        required: false
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  release-tracking:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Checkout the shared script
+        uses: actions/checkout@v7
+        with:
+          repository: ZeroAlloc-Net/.github
+          ref: ${{ inputs.tool-ref }}
+          path: .release-tracking-tool
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Check nothing is left unshipped
+        run: python3 .release-tracking-tool/scripts/ship-release-tracking.py --check

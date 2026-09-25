@@ -1,0 +1,104 @@
+name: Ship release tracking
+
+# Reusable workflow that marks the analyzer rules and public API a pending
+# release adds as shipped, by committing the move onto the release PR branch.
+# Merging that PR then lands the move in the same commit that tags the release,
+# so AnalyzerReleases.Shipped.md and PublicAPI.Shipped.txt always say what each
+# published version contains. Without it the Unshipped files grew across every
+# release and nothing was ever marked shipped, so the analyzers could not flag a
+# change to a shipped rule or a shipped API. See ZeroAlloc-Net/.github#38.
+#
+# Consume from a repo's release-please.yml. The release-please job must
+# re-export `prs_created` and `pr` as job outputs; a step output is only visible
+# to another job when its job re-exports it, and without them the `if:` below is
+# always false:
+#
+#   release-please:
+#     outputs:
+#       prs_created: ${{ steps.release.outputs.prs_created }}
+#       pr: ${{ steps.release.outputs.pr }}
+#     ...
+#
+#   ship-release-tracking:
+#     needs: release-please
+#     if: ${{ needs.release-please.outputs.prs_created == 'true' }}
+#     uses: ZeroAlloc-Net/.github/.github/workflows/ship-release-tracking.yml@main
+#     with:
+#       branch: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+#     secrets:
+#       RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+#
+# Give the calling workflow a `concurrency: { group: release-please,
+# cancel-in-progress: false }`. Two quick pushes to main would otherwise run
+# release-please and this job concurrently against the same release PR branch.
+# Queued, not cancelled: a cancelled run could drop a release or its publish.
+#
+# release-please rebuilds its branch from main whenever main moves, dropping
+# this commit; the job then runs again in the same workflow run and re-applies
+# it. The script is idempotent and commits nothing when nothing is unshipped.
+#
+# Only single-component manifests are supported: the version comes from the
+# manifest's "." entry, and there is one version per release PR to record.
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'The release PR head branch, from the release-please `pr` output.'
+        required: true
+        type: string
+      tool-ref:
+        description: >-
+          Ref of ZeroAlloc-Net/.github to take scripts/ship-release-tracking.py
+          from. Keep it equal to the ref in the `uses:` line.
+        required: false
+        type: string
+        default: main
+    secrets:
+      RELEASE_TOKEN:
+        description: >-
+          Token to push with. Pass the same PAT release-please uses, so this push
+          triggers the release PR's checks exactly as release-please's own push
+          does; a push made with GITHUB_TOKEN leaves them waiting for approval.
+          Falls back to GITHUB_TOKEN when empty.
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  ship-release-tracking:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.branch }}
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Checkout the shared script
+        uses: actions/checkout@v7
+        with:
+          repository: ZeroAlloc-Net/.github
+          ref: ${{ inputs.tool-ref }}
+          path: .release-tracking-tool
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Move Unshipped entries to Shipped
+        run: |
+          set -euo pipefail
+          version=$(jq -r '."." // empty' .release-please-manifest.json)
+          if [ -z "$version" ]; then
+            echo "::error::.release-please-manifest.json has no \".\" entry; only single-component manifests are supported"
+            exit 1
+          fi
+          python3 .release-tracking-tool/scripts/ship-release-tracking.py "$version"
+          if git diff --quiet; then
+            echo "Nothing unshipped for $version."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: mark analyzer rules and public api shipped in $version"
+          git push
