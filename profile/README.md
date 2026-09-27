@@ -583,13 +583,26 @@ public partial class OrderFulfillmentSaga
 {
     public OrderId OrderId { get; private set; }
 
-    [StartedBy] public ValueTask Handle(OrderPlaced evt, ISagaContext ctx) { /* ... */ }
-    [Step]      public ValueTask Handle(PaymentReceived evt, ISagaContext ctx) { /* ... */ }
-    [Compensate(nameof(Handle))] public ValueTask CompensatePayment(ISagaContext ctx) { /* ... */ }
+    [CorrelationKey] public OrderId Correlation(OrderPlaced e)    => e.OrderId;
+    [CorrelationKey] public OrderId Correlation(PaymentCharged e) => e.OrderId;
+
+    [Step(Order = 1, Compensate = nameof(CancelReservation))]
+    public ReserveStockCommand ReserveStock(OrderPlaced e)
+    {
+        OrderId = e.OrderId;
+        return new ReserveStockCommand(e.OrderId);
+    }
+
+    [Step(Order = 2)]
+    public ShipOrderCommand ShipOrder(PaymentCharged e) => new(OrderId);
+
+    public CancelReservationCommand CancelReservation() => new(OrderId);
 }
 
-// Default in-memory; swap to durable EF Core with one call
-services.AddZeroAllocSaga().UseEfCore<MyDbContext>();
+// In-memory by default; swap to a durable store with one call
+services.AddSaga()
+    .WithEfCoreStore<MyDbContext>()
+    .WithOrderFulfillmentSaga();   // generated per saga
 ```
 
 ---
