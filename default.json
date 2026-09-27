@@ -126,6 +126,13 @@
         "when .NET 11 shipped. Blocking the major outright needs no new rule per",
         "release.",
         "",
+        "Npgsql.EntityFrameworkCore.PostgreSQL is the same case from outside Microsoft: the",
+        "provider versions in lockstep with EF Core, one major per EF Core major, and",
+        "10.0.3 carries a single lib/net10.0. ZeroAlloc.Outbox#203 was the missed case:",
+        "the net10.0 reference was already 10.0.3, and Renovate moved the net8.0 one",
+        "from 9.0.4 to 10.0.3 too, so the restore failed with NU1202. The plain Npgsql",
+        "ADO.NET package is multi-targeted and stays out, as Microsoft.Extensions.* does.",
+        "",
         "Deliberately NOT applied to Microsoft.Extensions.*: those are multi-targeted.",
         "Microsoft.Extensions.Http 10.0.10 ships net462, netstandard2.0, net8.0, net9.0",
         "and net10.0, so constraining it would block upgrades that restore perfectly."
@@ -135,7 +142,8 @@
       ],
       "matchPackageNames": [
         "/^Microsoft\\.AspNetCore($|\\.)/i",
-        "/^Microsoft\\.EntityFrameworkCore($|\\.)/i"
+        "/^Microsoft\\.EntityFrameworkCore($|\\.)/i",
+        "/^Npgsql\\.EntityFrameworkCore\\.PostgreSQL($|\\.)/i"
       ],
       "matchUpdateTypes": [
         "major"
