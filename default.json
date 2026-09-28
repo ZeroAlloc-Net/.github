@@ -410,6 +410,40 @@
       ],
       "groupName": "ZeroAlloc.ValueObjects",
       "separateMajorMinor": false
+    },
+    {
+      "description": [
+        "A library keeps the internal ZeroAlloc floor it ships with, such as",
+        "ZeroAlloc.Mediator >= 5.1.5, for as long as it still works with the newer",
+        "major. Raising that floor in shipped code forces every consumer onto the new",
+        "major, and changing a dependency's major is itself a major, so the bump would",
+        "cost this package a needless major release too.",
+        "",
+        "So no ZeroAlloc major is raised in src/ or in the repo-wide props files that",
+        "set the versions src ships with. Majors in every other file stay enabled, such",
+        "as a test project's own reference or VersionOverride: that is how the tests",
+        "keep running against the newest major, and where a real incompatibility shows",
+        "up. When one does, raising the floor is a deliberate change made by hand.",
+        "",
+        "ZeroAlloc.TestHelpers is excluded: it is test-only, so its major never reaches",
+        "a consumer, and in repos using Directory.Packages.props it is set there."
+      ],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "/^ZeroAlloc($|\\.)/i",
+        "!/^ZeroAlloc\\.TestHelpers($|\\.)/i"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "matchFileNames": [
+        "src/**",
+        "Directory.Packages.props",
+        "Directory.Build.props"
+      ],
+      "enabled": false
     }
   ],
   "vulnerabilityAlerts": {
