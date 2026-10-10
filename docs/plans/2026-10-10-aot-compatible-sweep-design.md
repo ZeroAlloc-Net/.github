@@ -38,7 +38,7 @@ One PR per repo.
 | Repo | Projects | Notes |
 |---|---|---|
 | Collections | ZeroAlloc.Collections | netstandard2.1 is excluded by the condition |
-| EventSourcing | Aggregates, InMemory, Kafka, Mediator, Outbox, PostgreSql, Sql, Sqlite, SqlServer, Telemetry | Also fixes the one `MakeGenericType` site in EventSourcing.Telemetry, `EventSourcingBuilderExtensions.cs:41` (IL2055/IL3050), with a generic overload or an annotated `Type` parameter |
+| EventSourcing | Aggregates, InMemory, Kafka, Mediator, Outbox, PostgreSql, Sql, Sqlite, SqlServer | Telemetry waits for wave 2 |
 | Inject | ZeroAlloc.Inject, ZeroAlloc.Inject.Container | |
 | Mediator | Authorization, Cache, Resilience, Telemetry, Validation | |
 | Outbox | Dashboard.Blazor, InMemory, Mediator, Telemetry | The other packages wait for wave 2 |
@@ -65,6 +65,13 @@ Both repos have the same shape, so the same fixes apply to each.
 - **Dashboard.Blazor (Scheduling only; Outbox's is clean).** Call `ReadFromJsonAsync` with a `JsonTypeInfo<T>` from a source-generated context.
 - **Resilience.** Annotate `AddTransient<TService>`'s type parameter with `[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]` (IL2091).
 - **EfCore.** EF Core is not trim-safe, which shows up as IL2026 on the `DbContext` constructor and `[MaxLength]`. Annotate the public entry points with `RequiresUnreferencedCode` and `RequiresDynamicCode`.
+
+### EventSourcing.Telemetry
+
+- `WithTelemetry()` decorates every registered `IAggregateRepository<TAggregate, TId>` at run time. It closes `InstrumentedAggregateRepository<,>` over the registration's type arguments with `MakeGenericType` (IL2055, IL3050) and creates it with `Activator`.
+- `TId` is often a value type such as `Guid`, so under Native AOT the closed type may not exist and the call can fail at run time. That makes this a bug for AOT users, not only a warning.
+- Fix: capture the types where they are statically known. When a repository is registered with its generic arguments, also register a typed decorator factory for that pair. `WithTelemetry()` then applies those factories instead of building types at run time.
+- Design the registration change in the PR, and keep `WithTelemetry()` source-compatible.
 
 ### AdoNet.Async
 
