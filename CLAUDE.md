@@ -76,8 +76,13 @@ path, a one-time cache fill.
 - The AOT smoke sample:
   - publishes with `TreatWarningsAsErrors=true`, not a list of six IL codes. If a third-party rollup warning
     really blocks it, name the assembly and exclude only that code with `WarningsNotAsErrors`.
-  - exercises the hot path of **every** package in the repo, not only the core one. Adapter packages that
-    need a live service are at least AOT-published in CI.
+  - exercises the hot path of **every** package in the repo, not only the core one, and runs it. The sweep
+    reported no AOT breaks, yet ZeroAlloc.EventSourcing.Kafka crashed on its first client the moment a smoke
+    ran it: Confluent.Kafka binds its native methods by reflection and the trimmer removed them. A
+    package with no smoke has unknown AOT status, not a passing one.
+  - runs adapter packages against real services. Start them as CI service containers and pass the
+    addresses in environment variables; a NativeAOT binary cannot drive Testcontainers. Publish-only is a
+    last resort.
   - for apps and templates, makes real authenticated requests, not only an anonymous `/healthz`.
 
 ## 6. Docs must match measurements
