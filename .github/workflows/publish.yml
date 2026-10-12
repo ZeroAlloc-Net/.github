@@ -1,0 +1,324 @@
+name: Publish
+
+# Reusable workflow that builds, packs, verifies and publishes one release of a repository to
+# nuget.org, and then confirms that every package actually arrived. It replaces the per-repo
+# copies of the publish job, which had drifted apart. See ZeroAlloc-Net/.github#49.
+#
+# Call it from release-please.yml once a release is created:
+#
+#   publish:
+#     needs: release-please
+#     if: ${{ needs.release-please.outputs.release_created == 'true' }}
+#     uses: ZeroAlloc-Net/.github/.github/workflows/publish.yml@main
+#     with:
+#       tag: ${{ needs.release-please.outputs.tag_name }}
+#       version: ${{ needs.release-please.outputs.version }}
+#     secrets:
+#       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+#
+# and from publish-from-manifest.yml, the manual rescue, with the tag of the manifest version.
+# The caller needs `contents: write` for the release assets and `packages: write` for GitHub
+# Packages.
+#
+# Every step exists because a release once reported success while shipping nothing, or shipping
+# the wrong bytes:
+#   - It checks out the release tag, not the triggering commit. Re-running an older run to
+#     recover a dropped push event, or rescuing after main has moved on, then still builds the
+#     released code.
+#   - It discovers packable projects by asking MSBuild, not with a hardcoded list or a grep for
+#     <IsPackable>. A hardcoded list left ZeroAlloc.Outbox.Orm off a release; a text grep cannot
+#     see IsPackable set by Directory.Build.props, a condition or the SDK default.
+#   - It stamps -p:Version on build and pack, so assembly and package agree, and then reads the
+#     produced nupkgs before pushing. The nuspec version, every sibling dependency and every
+#     assembly this repository built must carry the release version. Authorization 2.1.0 shipped
+#     9.9.9.0 assemblies and Flux.Blazor declared a ZeroAlloc.Flux version that never existed;
+#     both passed every test.
+#   - After the push it polls the nuget.org flat container until every package lists the
+#     version, then downloads them and runs the same check on the published bytes. The push
+#     uses --skip-duplicate, which keeps an earlier upload of the same version, so only the
+#     published bytes say what consumers get. A green run without this proved nothing shipped.
+#
+# The checks live in scripts/nupkg-check.py so they can be run locally too:
+#   python scripts/nupkg-check.py verify ./nupkg --version 1.2.3 --expect ids.txt --own-assemblies names.txt
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: >-
+          The release tag to build, as release-please's `tag_name` output: `v1.2.3`, or
+          `ZeroAlloc.Saga-v1.2.3` where the tag carries the component. It must end in
+          `v<version>`, which catches a caller wiring the wrong outputs together.
+        required: true
+        type: string
+      version:
+        description: 'The release version, without a leading v, as release-please''s `version` output.'
+        required: true
+        type: string
+      solution:
+        description: >-
+          Solution or project passed to build and test, such as `ZeroAlloc.Rest.slnx`. Empty
+          lets dotnet find the single solution or project in the repository root.
+        required: false
+        type: string
+        default: ''
+      dotnet-version:
+        description: >-
+          SDKs to install in addition to the one global.json pins, newline-separated. Repos whose
+          tests target net8.0 or net9.0 add `8.0.x` / `9.0.x` here.
+        required: false
+        type: string
+        default: '10.0.x'
+      build-properties:
+        description: >-
+          Extra MSBuild arguments for build, pack discovery and pack, space-separated, such as
+          `-p:JevRelease=true`. -c Release and -p:Version are always passed.
+        required: false
+        type: string
+        default: ''
+      test-command:
+        description: >-
+          Replaces the default test step, `dotnet test <solution> -c Release --no-build`. For
+          repositories whose tests need something first, such as a local package feed. It runs
+          in bash after the build, with VERSION set. It cannot be skipped by leaving it empty.
+        required: false
+        type: string
+        default: ''
+      pack-root:
+        description: >-
+          Directory searched recursively for projects to pack. Every project under it that
+          MSBuild evaluates as IsPackable=true is packed; nothing is listed by hand.
+        required: false
+        type: string
+        default: 'src'
+      verify-command:
+        description: >-
+          Extra check run after the built-in package check and before anything is pushed,
+          such as `bash scripts/verify-generator-pack-layout.sh "$PACKAGES_DIR"`. It runs in
+          bash with PACKAGES_DIR and VERSION set. A non-zero exit stops the release.
+        required: false
+        type: string
+        default: ''
+      github-packages:
+        description: 'Also push to GitHub Packages for the repository owner. Needs `packages: write`.'
+        required: false
+        type: boolean
+        default: true
+      release-assets:
+        description: 'Attach the .nupkg files to the GitHub release of `tag`. Needs `contents: write`.'
+        required: false
+        type: boolean
+        default: true
+      nuget-timeout-minutes:
+        description: >-
+          How long to wait for every package to appear on nuget.org before failing. Indexing
+          usually takes 3 to 6 minutes, occasionally much longer.
+        required: false
+        type: number
+        default: 30
+      dry-run:
+        description: >-
+          Build, test, pack and verify, then stop before pushing anything. Use it to check a
+          migration: the job summary lists exactly what a real run would publish.
+        required: false
+        type: boolean
+        default: false
+      tool-ref:
+        description: >-
+          Ref of ZeroAlloc-Net/.github to take scripts/nupkg-check.py from. Keep it equal to
+          the ref in the `uses:` line.
+        required: false
+        type: string
+        default: main
+    secrets:
+      NUGET_API_KEY:
+        description: 'nuget.org API key with push rights for every package the repository publishes.'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      VERSION: ${{ inputs.version }}
+      SOLUTION: ${{ inputs.solution }}
+      BUILD_PROPERTIES: ${{ inputs.build-properties }}
+      PACKAGES_DIR: ${{ github.workspace }}/.publish/nupkg
+      CHECK: ${{ github.workspace }}/.publish-tool/scripts/nupkg-check.py
+      META: ${{ github.workspace }}/.publish/meta
+    steps:
+      - name: Check inputs
+        run: |
+          set -euo pipefail
+          if [ -z "$VERSION" ] || [ -z "$TAG" ]; then
+            echo "::error::tag and version are both required; got tag '$TAG', version '$VERSION'"
+            exit 1
+          fi
+          if [[ "$VERSION" == v* ]]; then
+            echo "::error::version '$VERSION' must not start with v"
+            exit 1
+          fi
+          if [[ "$TAG" != *"v$VERSION" ]]; then
+            echo "::error::tag '$TAG' does not end in v$VERSION; the caller passed mismatched outputs"
+            exit 1
+          fi
+
+      - name: Checkout the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Checkout the shared check script
+        uses: actions/checkout@v7
+        with:
+          repository: ZeroAlloc-Net/.github
+          ref: ${{ inputs.tool-ref }}
+          path: .publish-tool
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          # The caller's global.json pin, plus anything the tests target.
+          global-json-file: global.json
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Restore tools
+        run: |
+          if [ -f .config/dotnet-tools.json ]; then
+            dotnet tool restore
+          else
+            echo "No .config/dotnet-tools.json; nothing to restore."
+          fi
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          # build-properties is a space-separated argument list; solution is one path or none.
+          read -ra props <<<"$BUILD_PROPERTIES"
+          target=()
+          if [ -n "$SOLUTION" ]; then target=("$SOLUTION"); fi
+          dotnet build "${target[@]}" -c Release -p:Version="$VERSION" "${props[@]}"
+
+      - name: Test
+        env:
+          TEST_COMMAND: ${{ inputs.test-command }}
+        run: |
+          set -euo pipefail
+          if [ -n "$TEST_COMMAND" ]; then
+            eval "$TEST_COMMAND"
+          else
+            target=()
+            if [ -n "$SOLUTION" ]; then target=("$SOLUTION"); fi
+            dotnet test "${target[@]}" -c Release --no-build
+          fi
+
+      - name: Discover and pack
+        env:
+          PACK_ROOT: ${{ inputs.pack-root }}
+        run: |
+          set -euo pipefail
+          read -ra props <<<"$BUILD_PROPERTIES"
+          mkdir -p "$PACKAGES_DIR" "$META"
+          : > "$META/expected-ids.txt"
+          # Assembly names this repository builds; only these are checked inside the packages,
+          # so bundled third-party assemblies keep their own versions.
+          git ls-files '*.csproj' | xargs -r -n1 basename | sed 's/\.csproj$//' | sort -u > "$META/own-assemblies.txt"
+
+          mapfile -t projects < <(find "$PACK_ROOT" -name '*.csproj' -not -path '*/bin/*' -not -path '*/obj/*' | sort)
+          if [ "${#projects[@]}" -eq 0 ]; then
+            echo "::error::no projects under $PACK_ROOT"
+            exit 1
+          fi
+
+          {
+            echo "### Packable projects under \`$PACK_ROOT\`"
+            echo ""
+            echo "| Project | IsPackable | PackageId |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for csproj in "${projects[@]}"; do
+            # MSBuild's own answer, after Directory.Build.props, conditions and SDK defaults.
+            evaluated=$(dotnet msbuild "$csproj" -nologo -p:Configuration=Release "${props[@]}" \
+              -getProperty:IsPackable -getProperty:PackageId)
+            packable=$(jq -r '.Properties.IsPackable' <<<"$evaluated")
+            package_id=$(jq -r '.Properties.PackageId' <<<"$evaluated")
+            echo "| $csproj | $packable | $package_id |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$packable" != "true" ]; then
+              echo "Skipping $csproj (IsPackable=$packable)"
+              continue
+            fi
+            echo "Packing $csproj as $package_id $VERSION"
+            echo "$package_id" >> "$META/expected-ids.txt"
+            dotnet pack "$csproj" -c Release --no-build -o "$PACKAGES_DIR" -p:Version="$VERSION" "${props[@]}"
+          done
+
+          if [ ! -s "$META/expected-ids.txt" ]; then
+            echo "::error::no packable project under $PACK_ROOT"
+            exit 1
+          fi
+
+      - name: Verify the packages carry the release version
+        run: python3 "$CHECK" verify "$PACKAGES_DIR" --version "$VERSION" --expect "$META/expected-ids.txt" --own-assemblies "$META/own-assemblies.txt"
+
+      - name: Repository verification
+        if: ${{ inputs.verify-command != '' }}
+        env:
+          VERIFY_COMMAND: ${{ inputs.verify-command }}
+        run: |
+          set -euo pipefail
+          eval "$VERIFY_COMMAND"
+
+      - name: Keep the packages
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: nupkg-${{ inputs.version }}
+          path: ${{ env.PACKAGES_DIR }}
+          if-no-files-found: ignore
+
+      - name: Push to nuget.org
+        if: ${{ !inputs.dry-run }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::NUGET_API_KEY is empty"
+            exit 1
+          fi
+          # .snupkg files next to the .nupkg go to the symbol server with them.
+          dotnet nuget push "$PACKAGES_DIR/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate
+
+      - name: Push to GitHub Packages
+        if: ${{ !inputs.dry-run && inputs.github-packages }}
+        env:
+          GH_PACKAGES_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub Packages hosts no symbols.
+          dotnet nuget push "$PACKAGES_DIR/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key "$GH_PACKAGES_TOKEN" \
+            --skip-duplicate \
+            --no-symbols
+
+      - name: Attach to the GitHub release
+        if: ${{ !inputs.dry-run && inputs.release-assets }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$PACKAGES_DIR"/*.nupkg --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Wait for nuget.org
+        if: ${{ !inputs.dry-run }}
+        run: |
+          python3 "$CHECK" await --version "$VERSION" --expect "$META/expected-ids.txt" \
+            --timeout-minutes ${{ inputs.nuget-timeout-minutes }} --download "$GITHUB_WORKSPACE/.publish/published"
+
+      - name: Verify the published packages
+        if: ${{ !inputs.dry-run }}
+        run: python3 "$CHECK" verify "$GITHUB_WORKSPACE/.publish/published" --version "$VERSION" --expect "$META/expected-ids.txt" --own-assemblies "$META/own-assemblies.txt"
