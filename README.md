@@ -12,7 +12,9 @@ Organization profile and meta-repo for **[ZeroAlloc-Net](https://github.com/Zero
 | [`.github/workflows/api-compat.yml`](.github/workflows/api-compat.yml) | Reusable gate comparing each package's public API with its latest NuGet release |
 | [`.github/workflows/benchmark-smoke.yml`](.github/workflows/benchmark-smoke.yml) | Reusable smoke run that fails when any benchmark crashes or produces no result |
 | [`.github/workflows/ship-release-tracking.yml`](.github/workflows/ship-release-tracking.yml) | Reusable release-please step that moves Unshipped analyzer rules and public API to Shipped on the release PR |
+| [`.github/workflows/publish.yml`](.github/workflows/publish.yml) | Reusable NuGet publish: builds the release tag, packs every packable project, verifies the versions in the packages, pushes, then waits for nuget.org and verifies the published bytes |
 | [`.github/workflows/release-tracking.yml`](.github/workflows/release-tracking.yml) | Reusable CI guard that fails a release PR while anything is left Unshipped |
+| [`scripts/nupkg-check.py`](scripts/nupkg-check.py) | The package checks `publish.yml` runs: `verify` reads versions in nupkgs, `await` polls nuget.org |
 | [`scripts/ship-release-tracking.py`](scripts/ship-release-tracking.py) | The script both release-tracking workflows run; `--check` runs the guard locally |
 
 ## About ZeroAlloc-Net
