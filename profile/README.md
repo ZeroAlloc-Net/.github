@@ -190,7 +190,7 @@ while (ring.TryRead(out var item))
 
 ## ZeroAlloc.EventSourcing
 
-Zero-allocation event sourcing for .NET 8+. Struct-based aggregate state keeps the read path off the heap. In-memory and SQL backends (SQL Server / PostgreSQL). Source generator emits aggregate boilerplate. First-class integration with `ZeroAlloc.Serialisation` for AOT-safe event serialization.
+Zero-allocation event sourcing for .NET 8+. Struct-based aggregate state keeps the read path off the heap. In-memory, SQL Server, PostgreSQL and SQLite backends. Source generator emits aggregate boilerplate. First-class integration with `ZeroAlloc.Serialisation` for AOT-safe event serialization.
 
 ```csharp
 // Define aggregate state as a struct — zero heap allocation on read
@@ -225,6 +225,17 @@ await repo.SaveAsync("order-1", order, CancellationToken.None);
 ```
 
 Optional `ZeroAlloc.EventSourcing.Telemetry` package adds BCL-based `ActivitySource` + `Meter` instrumentation with no OpenTelemetry SDK dependency.
+
+**Integration packages**
+
+- `ZeroAlloc.EventSourcing.Aggregates`: aggregate base with generator-emitted `Apply` dispatch
+- `ZeroAlloc.EventSourcing.InMemory`: in-process event store for tests and prototypes
+- `ZeroAlloc.EventSourcing.PostgreSql`: PostgreSQL event store
+- `ZeroAlloc.EventSourcing.SqlServer`: SQL Server event store
+- `ZeroAlloc.EventSourcing.Sqlite`: SQLite event store, AOT-clean via Microsoft.Data.Sqlite
+- `ZeroAlloc.EventSourcing.Kafka`: publishes committed events to Kafka
+- `ZeroAlloc.EventSourcing.Mediator`: republishes live committed events through ZeroAlloc.Mediator notifications
+- `ZeroAlloc.EventSourcing.Outbox`: at-least-once cross-aggregate event dispatch from the event store
 
 ---
 
@@ -356,6 +367,14 @@ var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
 | Publish Single | ~6 ns | ~222 ns | **37×** |
 | Publish Multi | ~5 ns | ~299 ns | **~60×** |
 
+**Integration packages**
+
+- `ZeroAlloc.Mediator.Authorization`: authorizes requests via ZeroAlloc.Authorization before dispatch
+- `ZeroAlloc.Mediator.Cache`: caches responses for request types marked `[Cache]`
+- `ZeroAlloc.Mediator.Resilience`: retry, circuit breaker and timeout declared on request types
+- `ZeroAlloc.Mediator.Telemetry`: OpenTelemetry spans, counters and histograms per `Send`
+- `ZeroAlloc.Mediator.Validation`: validates requests via ZeroAlloc.Validation; failures come back as `Result`, not exceptions
+
 ---
 
 ## ZeroAlloc.Notify
@@ -426,6 +445,17 @@ await _db.SaveChangesAsync(ct);
 // Polling worker dispatches in the background — at-least-once delivery, retry + DLQ baked in
 services.AddZeroAllocOutbox().UseEfCore<MyDbContext>();
 ```
+
+**Integration packages**
+
+- `ZeroAlloc.Outbox.EfCore`: EF Core store
+- `ZeroAlloc.Outbox.Orm`: ZeroAlloc.ORM store with transactional enqueue on the caller's transaction
+- `ZeroAlloc.Outbox.InMemory`: in-memory store for tests
+- `ZeroAlloc.Outbox.Mediator`: dispatches outbox messages via `IMediator.Publish`
+- `ZeroAlloc.Outbox.Resilience`: wraps dispatchers in a ZeroAlloc.Resilience proxy
+- `ZeroAlloc.Outbox.Telemetry`: source-generated OpenTelemetry proxy around dispatch
+- `ZeroAlloc.Outbox.Dashboard`: operations dashboard: Minimal API, SSE and embedded HTML
+- `ZeroAlloc.Outbox.Dashboard.Blazor`: `<OutboxDashboard />` Blazor component
 
 ---
 
@@ -528,6 +558,15 @@ public class UserService(IUserApi api)
 | **ZeroAlloc.Rest QueryParam** | **2,474 ns** | **5.5× faster** | 1.85 KB |
 | Refit QueryParam | 13,509 ns | 1× | 3.67 KB |
 
+**Integration packages**
+
+- `ZeroAlloc.Rest.DependencyInjection`: DI and `IHttpClientFactory` registration for generated clients
+- `ZeroAlloc.Rest.SystemTextJson`: System.Text.Json serializer
+- `ZeroAlloc.Rest.MessagePack`: MessagePack serializer
+- `ZeroAlloc.Rest.MemoryPack`: MemoryPack serializer
+- `ZeroAlloc.Rest.Resilience`: `[Retry]`, `[Timeout]` and `[CircuitBreaker]` on client interfaces
+- `ZeroAlloc.Rest.Tools.MSBuild`: generates a client interface from an OpenAPI 3.x spec at build time
+
 ---
 
 ## ZeroAlloc.Results
@@ -605,11 +644,21 @@ services.AddSaga()
     .WithOrderFulfillmentSaga();   // generated per saga
 ```
 
+**Integration packages**
+
+- `ZeroAlloc.Saga.EfCore`: EF Core persistence with row-version optimistic concurrency
+- `ZeroAlloc.Saga.Orm`: ZeroAlloc.ORM persistence
+- `ZeroAlloc.Saga.Redis`: Redis persistence with WATCH/MULTI/EXEC concurrency
+- `ZeroAlloc.Saga.Outbox`: transactional outbox: commands commit atomically with the saga state
+- `ZeroAlloc.Saga.Outbox.Orm`: outbox unit of work for the ZeroAlloc.ORM backend
+- `ZeroAlloc.Saga.Outbox.Redis`: outbox storage and unit of work for the Redis backend
+- `ZeroAlloc.Saga.Resilience`: retry, timeout, circuit-breaker and rate-limit policies on step-command dispatch
+
 ---
 
 ## ZeroAlloc.Scheduling
 
-Source-generated background job scheduler for .NET 8 and .NET 10. Decorate any class with `[Job]` and the generator emits the executor, DI registration, and recurring startup wiring — no reflection, no convention scanning at runtime. InMemory, EF Core, and Redis backends.
+Source-generated background job scheduler for .NET 8 and .NET 10. Decorate any class with `[Job]` and the generator emits the executor, DI registration, and recurring startup wiring — no reflection, no convention scanning at runtime. InMemory, EF Core, ZeroAlloc.ORM and Redis backends.
 
 ```csharp
 [Job(Every = Every.Hour)]
@@ -622,6 +671,18 @@ public sealed class CleanupExpiredSessionsJob : IJob
 // Generated DI extension wires executor + recurring schedule
 builder.Services.AddZeroAllocScheduling().UseInMemory();
 ```
+
+**Integration packages**
+
+- `ZeroAlloc.Scheduling.InMemory`: in-memory job store for tests
+- `ZeroAlloc.Scheduling.EfCore`: EF Core job store
+- `ZeroAlloc.Scheduling.Orm`: ZeroAlloc.ORM job store with an atomic claim, on SQLite, PostgreSQL and SQL Server
+- `ZeroAlloc.Scheduling.Redis`: Redis job store
+- `ZeroAlloc.Scheduling.Mediator`: dispatches jobs via `IMediator.Send`
+- `ZeroAlloc.Scheduling.Resilience`: wraps job executors in a ZeroAlloc.Resilience proxy
+- `ZeroAlloc.Scheduling.Telemetry`: source-generated OpenTelemetry proxy around job execution
+- `ZeroAlloc.Scheduling.Dashboard`: Minimal API dashboard with JSON endpoints and an embedded UI
+- `ZeroAlloc.Scheduling.Dashboard.Blazor`: Blazor dashboard components
 
 ---
 
@@ -828,6 +889,13 @@ if (!result.IsValid)
 | Nested model | 10.1 ns | 619 ns | ~61× | **0 B** |
 | Collection (3×) | 14.3 ns | 2,043 ns | ~143× | **0 B** |
 
+**Integration packages**
+
+- `ZeroAlloc.Validation.AspNetCore`: source-generated action filter that validates request models
+- `ZeroAlloc.Validation.Inject`: generates `AddZeroAllocValidators()` for reflection-free DI registration
+- `ZeroAlloc.Validation.Options`: plugs validators into Microsoft.Extensions.Options
+- `ZeroAlloc.Validation.Testing`: assertion helpers for validation results
+
 ---
 
 ## ZeroAlloc.ValueObjects
@@ -866,6 +934,11 @@ Fine-grained control via `[EqualityMember]` (opt-in) and `[IgnoreEqualityMember]
 | CFE_GetHashCode | 38.7 ns | 88 B | — |
 | Record_GetHashCode | 2.4 ns | 0 B | 16.1× |
 | **ZeroAlloc_GetHashCode** | **2.4 ns** | **0 B** | **~16×** |
+
+**Integration packages**
+
+- `ZeroAlloc.ValueObjects.EfCore`: EF Core value converters and conventions for `[TypedId]` structs
+- `ZeroAlloc.ValueObjects.Hosting`: host-integrated Snowflake worker-id registration
 
 ---
 
