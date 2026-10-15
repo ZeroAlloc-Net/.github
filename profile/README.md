@@ -26,8 +26,8 @@ All libraries in this org follow the same contract: the heavy work happens at co
 |---|---|---|
 | [ZeroAlloc.Analyzers](https://github.com/ZeroAlloc-Net/ZeroAlloc.Analyzers) | Roslyn analyzers for modern .NET performance patterns | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Analyzers.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Analyzers) |
 | [ZeroAlloc.AsyncEvents](https://github.com/ZeroAlloc-Net/ZeroAlloc.AsyncEvents) | Zero-allocation async event primitives — lock-free registration, `ValueTask` invocation, `ArrayPool` parallel dispatch, source-generated `[AsyncEvent]` wiring | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.AsyncEvents.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.AsyncEvents) |
-| [ZeroAlloc.Authorization](https://github.com/ZeroAlloc-Net/ZeroAlloc.Authorization) | Authorization primitives — `[Authorize]` attribute + `IAuthorizationPolicy` contract + `ISecurityContext` for hosts to extend. Source-of-truth contract package consumed by AI.Sentinel and the planned ZeroAlloc.Mediator.Authorization | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Authorization.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Authorization) |
-| [ZeroAlloc.Cache](https://github.com/ZeroAlloc-Net/ZeroAlloc.Cache) | Source-generated caching proxy — annotate an interface with `[Cache]`, Roslyn emits a transparent proxy with zero allocation on the cache-hit path. `IMemoryCache` and `HybridCache` backends | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Cache.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Cache) |
+| [ZeroAlloc.Authorization](https://github.com/ZeroAlloc-Net/ZeroAlloc.Authorization) | Authorization primitives — `[Policy]` / `[RequirePolicy]` attributes + `IAuthorizationPolicy` contract + `ISecurityContext` for hosts to extend, with a bundled generator emitting `AuthorizerFor<TRequest>`. Source-of-truth contract package consumed by AI.Sentinel and ZeroAlloc.Mediator.Authorization | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Authorization.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Authorization) |
+| [ZeroAlloc.Cache](https://github.com/ZeroAlloc-Net/ZeroAlloc.Cache) | Source-generated caching proxy — annotate an interface with `[Cache]`, Roslyn emits a transparent proxy with no heap allocation on a cache hit (`ValueTask<T>`, `MemoryCache`, .NET 9+). `IMemoryCache` and `HybridCache` backends | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Cache.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Cache) |
 | [ZeroAlloc.Collections](https://github.com/ZeroAlloc-Net/ZeroAlloc.Collections) | Zero-allocation pooled collection types — PooledList, RingBuffer, SpanDictionary, PooledStack, PooledQueue, and FixedSizeList with `ref struct` and heap variants | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Collections.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Collections) |
 | [ZeroAlloc.EventSourcing](https://github.com/ZeroAlloc-Net/ZeroAlloc.EventSourcing) | Zero-allocation event sourcing — struct-based aggregate state, in-memory and SQL backends, source-generated boilerplate, optional OpenTelemetry instrumentation | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.EventSourcing.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.EventSourcing) |
 | [ZeroAlloc.Flux](https://github.com/ZeroAlloc-Net/ZeroAlloc.Flux) | Source-generated Flux/Redux state management — `[Feature]` state, `[Reducer]` statics, compile-time action dispatch. Zero allocation per dispatch when handlers complete synchronously. Blazor integration via `ZeroAlloc.Flux.Blazor` | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Flux.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Flux) |
@@ -36,27 +36,27 @@ All libraries in this org follow the same contract: the heavy work happens at co
 | [ZeroAlloc.Mediator](https://github.com/ZeroAlloc-Net/ZeroAlloc.Mediator) | Zero-allocation mediator library with source-generated dispatch | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Mediator.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Mediator) |
 | [ZeroAlloc.Notify](https://github.com/ZeroAlloc-Net/ZeroAlloc.Notify) | Source-generated async INPC — fully awaitable `PropertyChangedAsync`/`CollectionChangedAsync` dispatch, no reflection, compile-time wiring | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Notify.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Notify) |
 | [ZeroAlloc.ORM](https://github.com/ZeroAlloc-Net/ZeroAlloc.ORM) | Source-generated raw-SQL data access — `[Query]` / `[Command]` / `[StoredProcedure]` on partial methods emit typed parameter binding and materialization against AdoNet.Async. NativeAOT-clean, zero runtime reflection | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.ORM.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.ORM) |
-| [ZeroAlloc.Outbox](https://github.com/ZeroAlloc-Net/ZeroAlloc.Outbox) | Source-generated transactional outbox — `[OutboxMessage]` emits a typed writer and dispatcher bridge. EF Core (production) and InMemory (tests) stores, polling worker, exponential-backoff retry, dead-letter | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Outbox.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Outbox) |
+| [ZeroAlloc.Outbox](https://github.com/ZeroAlloc-Net/ZeroAlloc.Outbox) | Source-generated transactional outbox — `[OutboxMessage]` emits a typed writer and dispatcher bridge. EF Core and ZeroAlloc.ORM (production) and InMemory (tests) stores, polling worker, exponential-backoff retry, dead-letter | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Outbox.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Outbox) |
 | [ZeroAlloc.Pipeline](https://github.com/ZeroAlloc-Net/ZeroAlloc.Pipeline) | Shared compile-time pipeline infrastructure — `IPipelineBehavior` interface and Roslyn discovery/emission utilities for ZeroAlloc generators | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Pipeline.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Pipeline) |
 | [ZeroAlloc.Resilience](https://github.com/ZeroAlloc-Net/ZeroAlloc.Resilience) | Source-generated resilience policies — `[Retry]`, `[Timeout]`, `[RateLimit]`, and `[CircuitBreaker]` compose into a generated proxy with zero heap allocation on the happy path | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Resilience.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Resilience) |
 | [ZeroAlloc.Rest](https://github.com/ZeroAlloc-Net/ZeroAlloc.Rest) | Source-generated Native AOT REST client — define an interface, Roslyn emits a type-safe `HttpClient` implementation at compile time, zero reflection at runtime | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Rest.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Rest) |
 | [ZeroAlloc.Results](https://github.com/ZeroAlloc-Net/ZeroAlloc.Results) | Zero-allocation `Result<T, E>` — no boxing, no heap pressure, full combinator API with async and LINQ support | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Results.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Results) |
 | [ZeroAlloc.Saga](https://github.com/ZeroAlloc-Net/ZeroAlloc.Saga) | Source-generated long-running process orchestration — declare a saga as a `partial class`, the generator emits state machine, notification handlers, and dispatch wiring. Compensation runs in reverse on failure | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Saga.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Saga) |
-| [ZeroAlloc.Scheduling](https://github.com/ZeroAlloc-Net/ZeroAlloc.Scheduling) | Source-generated background job scheduler — `[Job]` annotation wires up executor, DI registration, and recurring startup at compile time. InMemory, EF Core, and Redis backends | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Scheduling.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Scheduling) |
+| [ZeroAlloc.Scheduling](https://github.com/ZeroAlloc-Net/ZeroAlloc.Scheduling) | Source-generated background job scheduler — `[Job]` annotation wires up executor, DI registration, and recurring startup at compile time. InMemory, EF Core, ZeroAlloc.ORM and Redis backends | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Scheduling.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Scheduling) |
 | [ZeroAlloc.Serialisation](https://github.com/ZeroAlloc-Net/ZeroAlloc.Serialisation) | Source-generated `ISerializer<T>` — annotate a type, Roslyn emits a sealed serializer and DI extension. Backends for MemoryPack, MessagePack, and System.Text.Json. No reflection, no boxing, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Serialisation.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Serialisation) |
 | [ZeroAlloc.Specification](https://github.com/ZeroAlloc-Net/ZeroAlloc.Specification) | Source-generated specifications — compile-time `And`/`Or`/`Not` composition, zero closure allocations, EF Core compatible | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Specification.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Specification) |
 | [ZeroAlloc.StateMachine](https://github.com/ZeroAlloc-Net/ZeroAlloc.StateMachine) | Source-generated finite state machines — `[Transition<TState, TTrigger>]` attributes lower to a `switch` expression over tuples. No dictionary, no delegate dispatch, AOT-safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.StateMachine.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.StateMachine) |
 | [ZeroAlloc.Telemetry](https://github.com/ZeroAlloc-Net/ZeroAlloc.Telemetry) | Source-generated OpenTelemetry proxy — annotate an interface, Roslyn emits a BCL `ActivitySource` + `Meter` decorator. No OTel SDK dependency, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Telemetry.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Telemetry) |
-| [ZeroAlloc.Templates](https://github.com/ZeroAlloc-Net/ZeroAlloc.Templates) | `dotnet new` Web API templates — `za-clean` (Clean Architecture) and `za-vertical-slice`, both bundling 11 ZeroAlloc packages with SQLite, JWT, OpenTelemetry, NetArchTest boundary rules and BenchmarkDotNet/NBomber harnesses | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Templates.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Templates) |
-| [ZeroAlloc.TestHelpers](https://github.com/ZeroAlloc-Net/ZeroAlloc.TestHelpers) | Source-distributed test helpers — `AllocationGate` asserts an allocation budget over a warmed, GC-settled loop. Compiles into the consumer assembly as `internal`, so it never reaches a package's public surface | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.TestHelpers.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.TestHelpers) |
+| [ZeroAlloc.Templates](https://github.com/ZeroAlloc-Net/ZeroAlloc.Templates) | `dotnet new` Web API templates — `za-clean` (Clean Architecture) and `za-vertical-slice`, both built on 11 ZeroAlloc libraries, plus Telemetry in `za-vertical-slice`, with SQLite, JWT, OpenTelemetry, NetArchTest boundary rules and BenchmarkDotNet/NBomber harnesses | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Templates.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Templates) |
+| [ZeroAlloc.TestHelpers](https://github.com/ZeroAlloc-Net/ZeroAlloc.TestHelpers) | Source-distributed test helpers — `AllocationGate` asserts an allocation budget over a warmed, GC-settled loop; `TextSnapshot` and `GeneratorSnapshot` do snapshot testing. Compiles into the consumer assembly as `internal`, so it never reaches a package's public surface | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.TestHelpers.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.TestHelpers) |
 | [ZeroAlloc.Validation](https://github.com/ZeroAlloc-Net/ZeroAlloc.Validation) | Source-generated validation API — zero allocations, no reflection, Native AOT safe | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.Validation.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.Validation) |
-| [ZeroAlloc.ValueObjects](https://github.com/ZeroAlloc-Net/ZeroAlloc.ValueObjects) | Zero-allocation source-generated ValueObject equality for existing domain types | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.ValueObjects.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.ValueObjects) |
+| [ZeroAlloc.ValueObjects](https://github.com/ZeroAlloc-Net/ZeroAlloc.ValueObjects) | Zero-allocation source-generated ValueObject equality for existing domain types, plus `[TypedId]` strongly-typed IDs | [![NuGet](https://img.shields.io/nuget/v/ZeroAlloc.ValueObjects.svg?style=flat-square)](https://www.nuget.org/packages/ZeroAlloc.ValueObjects) |
 
 ---
 
 ## ZeroAlloc.Analyzers
 
-**42+ Roslyn analyzers** that detect allocation-heavy patterns and suggest zero/low-allocation alternatives. Fully aware of target framework version — rules automatically enable/disable based on `TargetFramework`.
+**64 Roslyn analyzers** across 15 categories that detect allocation-heavy patterns and suggest zero/low-allocation alternatives. Fully aware of target framework version — rules automatically enable/disable based on `TargetFramework`.
 
 Rules cover collections, strings, memory, logging, LINQ, async/await, serialization, and more. Common checks include:
 
@@ -96,44 +96,48 @@ public partial class OrderService
 }
 ```
 
-**Benchmark** (BenchmarkDotNet v0.14.0, .NET 9, X64 — 10 handlers, invoked once):
+**Benchmark** (BenchmarkDotNet v0.15.8, .NET 10, i9-12900HK — 10 handlers, invoked once):
 
 | Method | Mean | Ratio | Allocated |
 |---|---:|:---:|:---:|
-| Sync multicast delegate (baseline) | 22.96 ns | 1.0× | — |
-| Naive async (`Task.WhenAll`) | 203.48 ns | 8.96× | 280 B |
-| ZeroAlloc Parallel | 70.10 ns | 3.09× | 136 B |
-| **ZeroAlloc Sequential** | **16.10 ns** | **0.71×** | **0 B** |
+| Sync multicast delegate (baseline) | 40.69 ns | 1.0× | — |
+| Naive async (`Task.WhenAll`) | 440.47 ns | 10.83× | 280 B |
+| **ZeroAlloc Parallel** | **18.31 ns** | **0.45×** | **0 B** |
+| **ZeroAlloc Sequential** | **29.60 ns** | **0.73×** | **0 B** |
 
-Sequential mode is **30% faster than a sync multicast delegate** at zero allocations. Parallel mode is **3× faster than naive `Task.WhenAll`** with 51% less memory.
+Both modes are **faster than a sync multicast delegate** and allocate nothing when handlers complete synchronously. Parallel mode is **more than 10× faster than naive `Task.WhenAll`**, which allocates 280–288 B per call.
 
 ---
 
 ## ZeroAlloc.Authorization
 
-Source-of-truth authorization primitives for .NET. Five contract types — `ISecurityContext`, `IAuthorizationPolicy`, `[Authorize]`, `[AuthorizationPolicy]`, `AnonymousSecurityContext` — designed to be shared across hosts that need a unified policy contract. Pure contracts: no dispatch, no DI registration, no scanning. Hosts (AI.Sentinel for tool-call authz, the planned ZeroAlloc.Mediator.Authorization for handler authz) provide those.
+Source-of-truth authorization primitives for .NET: `ISecurityContext`, `IAuthorizationPolicy`, `[Policy]`, `[RequirePolicy]` and `AnonymousSecurityContext`. A bundled source generator emits one `AuthorizerFor<TRequest>` per `[RequirePolicy]`-decorated type, plus an `AddZeroAllocAuthorization()` DI extension. Hosts (AI.Sentinel for tool-call authz, `ZeroAlloc.Mediator.Authorization` for handler authz) resolve `AuthorizerFor<T>` and map the result to their own outcome.
 
 ```csharp
-[AuthorizationPolicy("AdminOnly")]
+[Policy("AdminOnly")]
 public sealed class AdminOnlyPolicy : IAuthorizationPolicy
 {
-    public bool IsAuthorized(ISecurityContext ctx) => ctx.Roles.Contains("Admin");
+    public ValueTask<UnitResult<AuthorizationFailure>> EvaluateAsync(
+        ISecurityContext ctx, CancellationToken ct = default)
+        => new(ctx.Roles.Contains("Admin")
+            ? UnitResult<AuthorizationFailure>.Success()
+            : new AuthorizationFailure(AuthorizationFailure.DefaultDenyCode, "Admin role required"));
 }
 
-public sealed class UserService
-{
-    [Authorize("AdminOnly")]
-    public Task DeleteUserAsync(string userId) { /* ... */ }
-}
+[RequirePolicy("AdminOnly")]
+public sealed record DeleteUserCommand(string UserId);
+
+// using ZeroAlloc.Authorization.Generated;
+builder.Services.AddZeroAllocAuthorization();   // generated
 ```
 
-For richer deny information, override `Evaluate` to return `UnitResult<AuthorizationFailure>` with a structured `Code` (e.g. `"policy.deny.role"`) and optional `Reason`. Native AOT compatible. Zero allocation on all four hot-path methods (`IsAuthorized`, `IsAuthorizedAsync`, `Evaluate`, `EvaluateAsync` happy path).
+A denial carries a structured `Code` (default `"policy.deny"`) and an optional `Reason`. `ZAUTH` generator diagnostics catch unknown, duplicate or misdeclared policies at build time. Native AOT compatible; a synchronously completing `EvaluateAsync` allocates 0 B.
 
 ---
 
 ## ZeroAlloc.Cache
 
-Source-generated zero-allocation caching proxy for .NET. Annotate an interface with `[Cache]`, the Roslyn generator emits a proxy that transparently intercepts every method call — **zero heap allocation on the cache-hit path**. Backed by `IMemoryCache` by default, with optional `HybridCache` (L1 + L2) opt-in per method. AOT-safe.
+Source-generated zero-allocation caching proxy for .NET. Annotate an interface with `[Cache]`, the Roslyn generator emits a proxy that transparently intercepts every method call — **zero heap allocation on the cache-hit path** for `ValueTask<T>` methods on the default `MemoryCache` on .NET 9+. Backed by `IMemoryCache` by default, with optional `HybridCache` (L1 + L2) opt-in per method. AOT-safe.
 
 ```csharp
 [Cache(TtlMs = 60_000)]
@@ -146,7 +150,7 @@ public interface IProductRepository
 }
 
 // One line wires proxy + backing implementation
-builder.Services.AddIProductRepositoryCache<ProductRepositoryImpl>();
+builder.Services.AddProductRepositoryCache<ProductRepositoryImpl>();
 ```
 
 Inject `IProductRepository` anywhere — caching is transparent to the caller.
@@ -155,7 +159,7 @@ Inject `IProductRepository` anywhere — caching is transparent to the caller.
 
 ## ZeroAlloc.Collections
 
-Six zero-allocation collection types for .NET, each available as a `ref struct` for stack-only scenarios and as a heap class for use in async code and DI. All collections rent their backing storage from `ArrayPool<T>.Shared` and return it on `Dispose()`. Every type exposes `AsSpan()` and `AsReadOnlySpan()` for zero-copy inner loops. An optional source generator can emit additional type-specific collection variants and `ref struct` enumerators at compile time — no reflection, fully Native AOT compatible.
+Six zero-allocation collection types for .NET, each available as a `ref struct` for stack-only scenarios and as a heap class for use in async code and DI. The pooled collections rent their backing storage from `ArrayPool<T>.Shared` and return it on `Dispose()`; `FixedSizeList<T>` wraps a caller-supplied (typically `stackalloc`) span and `HeapFixedSizeList<T>` a plain array. `PooledList`, `HeapPooledList`, `FixedSizeList` and `PooledStack` expose `AsSpan()` for zero-copy inner loops. The `ref struct` variants add, look up and enumerate with 0 B allocated; the `Heap*` variants allocate one enumerator per `foreach`. An optional source generator can emit additional type-specific collection variants and `ref struct` enumerators at compile time — no reflection, fully Native AOT compatible.
 
 ```csharp
 using ZeroAlloc.Collections;
@@ -193,35 +197,41 @@ while (ring.TryRead(out var item))
 Zero-allocation event sourcing for .NET 8+. Struct-based aggregate state keeps the read path off the heap. In-memory, SQL Server, PostgreSQL and SQLite backends. Source generator emits aggregate boilerplate. First-class integration with `ZeroAlloc.Serialisation` for AOT-safe event serialization.
 
 ```csharp
-// Define aggregate state as a struct — zero heap allocation on read
-public readonly record struct OrderState(string OrderId, decimal Total, bool Placed);
+public readonly record struct OrderId(Guid Value);
+public sealed record OrderPlacedEvent(string OrderNumber, decimal Total);
 
-public sealed class OrderAggregate : Aggregate<OrderState>
+// State is a struct — replaying events allocates no state objects
+public partial struct OrderState : IAggregateState<OrderState>
 {
-    public Result<Unit, string> Place(string orderId, decimal total)
-    {
-        if (State.Placed) return "already placed";
-        Raise(new OrderPlacedEvent(orderId, total));
-        return Unit.Value;
-    }
+    public static OrderState Initial => default;
+    public bool IsPlaced { get; private set; }
+    public decimal Total { get; private set; }
 
-    protected override OrderState Apply(OrderState state, object @event) => @event switch
+    internal OrderState Apply(OrderPlacedEvent e) => this with { IsPlaced = true, Total = e.Total };
+}
+
+// The generator emits ApplyEvent dispatch and OrderEventTypeRegistry for partial aggregates
+public sealed partial class Order : Aggregate<OrderId, OrderState>
+{
+    public void Place(string orderNumber, decimal total)
     {
-        OrderPlacedEvent e => state with { OrderId = e.OrderId, Total = e.Total, Placed = true },
-        _ => state,
-    };
+        if (State.IsPlaced) throw new InvalidOperationException("already placed");
+        Raise(new OrderPlacedEvent(orderNumber, total));
+    }
 }
 
 // Wire up DI
 services
+    .AddSingleton<IEventTypeRegistry, OrderEventTypeRegistry>()
     .AddEventSourcing()
-    .UseInMemoryEventStore();   // swap for .UsePostgreSqlEventStore(cs) in production
+    .UseInMemoryEventStore()   // swap for .UsePostgreSqlEventStore(cs) in production
+    .UseAggregateRepository<Order, OrderId>(() => new Order(), id => new StreamId($"order-{id.Value}"));
 
 // Use
-var repo = sp.GetRequiredService<IAggregateRepository<OrderAggregate, string>>();
-var order = new OrderAggregate();
-order.Place("order-1", 99.99m);
-await repo.SaveAsync("order-1", order, CancellationToken.None);
+var repo = sp.GetRequiredService<IAggregateRepository<Order, OrderId>>();
+using var order = new Order();
+order.Place("ORD-001", 99.99m);
+await repo.SaveAsync(order, new OrderId(Guid.NewGuid()), CancellationToken.None);
 ```
 
 Optional `ZeroAlloc.EventSourcing.Telemetry` package adds BCL-based `ActivitySource` + `Meter` instrumentation with no OpenTelemetry SDK dependency.
@@ -233,7 +243,7 @@ Optional `ZeroAlloc.EventSourcing.Telemetry` package adds BCL-based `ActivitySou
 - `ZeroAlloc.EventSourcing.PostgreSql`: PostgreSQL event store
 - `ZeroAlloc.EventSourcing.SqlServer`: SQL Server event store
 - `ZeroAlloc.EventSourcing.Sqlite`: SQLite event store, AOT-clean via Microsoft.Data.Sqlite
-- `ZeroAlloc.EventSourcing.Kafka`: publishes committed events to Kafka
+- `ZeroAlloc.EventSourcing.Kafka`: consumes events from Kafka topics with checkpointed position tracking
 - `ZeroAlloc.EventSourcing.Mediator`: republishes live committed events through ZeroAlloc.Mediator notifications
 - `ZeroAlloc.EventSourcing.Outbox`: at-least-once cross-aggregate event dispatch from the event store
 
@@ -293,13 +303,16 @@ services.AddMyServices();
 var provider = services.BuildZeroAllocInjectServiceProvider();
 ```
 
-**Benchmark** (i9-12900HK, .NET 9):
+`AddMyServices()` needs `ZeroAlloc.Inject` + `ZeroAlloc.Inject.Generator`; `BuildZeroAllocInjectServiceProvider()` (hybrid/standalone container) comes from `ZeroAlloc.Inject.Container`, which bundles both.
 
-| Scenario | ZeroAlloc.Inject | Microsoft DI | Speedup |
-|---|---|---|:---:|
-| Resolve transient | ~3 ns | ~35 ns | **~12×** |
-| Resolve singleton | ~1 ns | ~8 ns | **8×** |
-| Open generic (closed at compile time) | ~19 ns | N/A (AOT unsafe) | — |
+**Benchmark** (i9-12900HK, .NET 9 runtime, BenchmarkDotNet v0.15.8):
+
+| Scenario | ZeroAlloc.Inject (Standalone) | Microsoft DI | Speedup |
+|---|---:|---:|:---:|
+| Transient (1 property dep) | 21.9 ns | 43.7 ns | **2×** |
+| Decorated transient | 22.3 ns | 44.5 ns | **2×** |
+| Open generic (closed type) | 7.7 ns | 13.5 ns | **1.8×** |
+| Singleton | 5.4 ns | 6.3 ns | **1.2×** |
 
 ---
 
@@ -344,7 +357,7 @@ Level with Mapperly, the other source-generator mapper, and 2–18× faster than
 
 ## ZeroAlloc.Mediator
 
-Compile-time wired mediator for request/response, notifications, and streaming with **zero allocations** on all dispatch paths. Pipeline behaviors are inlined as static nested calls with no closure allocation.
+Compile-time wired mediator for request/response, notifications, and streaming with **zero allocations** on every non-streaming dispatch path. Pipeline behaviors are inlined as static nested calls with no closure allocation.
 
 ```csharp
 public readonly record struct Ping(string Message) : IRequest<string>;
@@ -356,30 +369,30 @@ public class PingHandler : IRequestHandler<Ping, string>
 }
 
 // Generated mediator with strongly-typed Send/Publish/CreateStream overloads
-var result = await Mediator.Send(new Ping("Hello"), ct); // ~2 ns, 0 bytes
+var result = await Mediator.Send(new Ping("Hello"), ct); // ~0.5 ns, 0 bytes
 ```
 
-**Benchmark** (i9-12900HK, .NET 10):
+**Benchmark** (i9-12900HK, .NET 10.0.4):
 
 | Scenario | ZeroAlloc.Mediator | MediatR | Speedup |
 |---|---|---|:---:|
-| Send | ~2 ns | ~88 ns | **44×** |
-| Publish Single | ~6 ns | ~222 ns | **37×** |
-| Publish Multi | ~5 ns | ~299 ns | **~60×** |
+| Send | 0.5 ns | 78.3 ns | **~160×** |
+| Publish Single | 6.1 ns | 243.8 ns | **~40×** |
+| Publish Multi | 6.6 ns | 332.4 ns | **~51×** |
 
 **Integration packages**
 
 - `ZeroAlloc.Mediator.Authorization`: authorizes requests via ZeroAlloc.Authorization before dispatch
 - `ZeroAlloc.Mediator.Cache`: caches responses for request types marked `[Cache]`
 - `ZeroAlloc.Mediator.Resilience`: retry, circuit breaker and timeout declared on request types
-- `ZeroAlloc.Mediator.Telemetry`: OpenTelemetry spans, counters and histograms per `Send`
+- `ZeroAlloc.Mediator.Telemetry`: OpenTelemetry request counter and duration histogram per `Send` (the generated dispatch already opens the spans)
 - `ZeroAlloc.Mediator.Validation`: validates requests via ZeroAlloc.Validation; failures come back as `Result`, not exceptions
 
 ---
 
 ## ZeroAlloc.Notify
 
-Source-generated async `INotifyPropertyChanged` for .NET 8+. Decorate a `partial` class with `[NotifyPropertyChangedAsync]` and mark backing fields with `[ObservableProperty]` — the Roslyn generator emits `PropertyChangedAsync`, `CollectionChangedAsync`, and strongly-typed `Set*Async` methods at compile time. No reflection, no virtual dispatch, fully awaitable `ValueTask` handlers. The only INPC framework in the .NET ecosystem where `await vm.SetNameAsync(...)` truly awaits all registered handlers.
+Source-generated async `INotifyPropertyChanged` for .NET 8+. Decorate a `partial` class with `[NotifyPropertyChangedAsync]` and mark backing fields with `[ObservableProperty]` — the Roslyn generator emits `PropertyChangedAsync` and strongly-typed `Set*Async` methods at compile time (add `[NotifyCollectionChangedAsync]` for `CollectionChangedAsync`). No reflection, no virtual dispatch, fully awaitable `ValueTask` handlers. The only INPC framework in the .NET ecosystem where `await vm.SetNameAsync(...)` truly awaits all registered handlers.
 
 ```csharp
 [NotifyPropertyChangedAsync]
@@ -400,14 +413,14 @@ await vm.SetNameAsync("Alice");
 await vm.SetAgeAsync(30);
 ```
 
-**Benchmark** (i9-12900HK, .NET 10, BenchmarkDotNet):
+**Benchmark** (i9-12900HK, .NET 10.0.12, BenchmarkDotNet v0.15.8, 5 handlers):
 
 | Method | Mean | Allocated | vs Baseline |
 |---|---:|:---:|:---:|
-| Sync `INotifyPropertyChanged` (baseline) | 21.41 ns | 24 B | — |
-| CommunityToolkit.Mvvm *(sync only)* | 31.27 ns | 0 B | 1.47× slower |
-| PropertyChanged.Fody *(sync only)* | 17.57 ns | 0 B | 1.22× faster |
-| **ZeroAlloc.Notify** *(fully awaitable)* | **61.84 ns** | **48 B** | **only async-first** |
+| Sync `INotifyPropertyChanged` (baseline) | 35.2 ns | 24 B | — |
+| CommunityToolkit.Mvvm *(sync only)* | 50.2 ns | 0 B | 1.43× slower |
+| PropertyChanged.Fody *(sync only)* | 29.0 ns | 0 B | 1.21× faster |
+| **ZeroAlloc.Notify** *(fully awaitable)* | **112.8 ns** | **40 B** | **only async-first** |
 
 CommunityToolkit and Fody dispatch synchronously and cannot await async handlers. ZeroAlloc.Notify trades ~3× overhead for first-class `ValueTask` semantics — the right trade-off when handlers do I/O.
 
@@ -424,7 +437,7 @@ public partial Task<Customer?> GetCustomerAsync(int id, CancellationToken ct);
 public sealed record Customer(int Id, string Name);
 ```
 
-A positional record whose order matches the `SELECT` needs no mapping configuration, and a nullable return type turns an empty result set into `null`. `[Command]` and `[StoredProcedure]` cover writes and procs, `IAsyncEnumerable<T>` returns stream without buffering, and `MigrationRunner` applies embedded SQL migrations on SQLite and Postgres.
+A positional record whose order matches the `SELECT` needs no mapping configuration, and a nullable return type turns an empty result set into `null`. `[Command]` and `[StoredProcedure]` cover writes and procs, `IAsyncEnumerable<T>` returns stream without buffering, and `MigrationRunner` applies embedded SQL migrations on SQLite, Postgres and SQL Server.
 
 Ships as four packages: the runtime extensions, the `Abstractions` attributes, the `Generator` itself, and `ZeroAlloc.TypeConversions` — a convention catalog shared with ZeroAlloc.Mapping.
 
@@ -432,18 +445,21 @@ Ships as four packages: the runtime extensions, the `Abstractions` attributes, t
 
 ## ZeroAlloc.Outbox
 
-Source-generated transactional outbox for .NET. Annotate a message type with `[OutboxMessage]` and the Roslyn generator emits a typed writer and dispatcher bridge — no reflection, no boxing, AOT-safe. Backed by EF Core (production) or in-memory (tests), with a built-in polling worker, exponential-backoff retry, and dead-letter support.
+Source-generated transactional outbox for .NET. Annotate a message type with `[OutboxMessage]` and the Roslyn generator emits a typed writer and dispatcher bridge — no reflection, no boxing, AOT-safe. Backed by EF Core or ZeroAlloc.ORM (production) or in-memory (tests), with a built-in polling worker, exponential-backoff retry, and dead-letter support.
 
 ```csharp
 [OutboxMessage]
 public sealed record OrderPlaced(Guid OrderId, decimal Total);
 
-// Inside a transaction — write the row in the same DbContext as your domain change
-await _outbox.WriteAsync(new OrderPlaced(orderId, total), ct);
+// Enlist the outbox write in the same transaction as your domain change
+await using var tx = await _db.Database.BeginTransactionAsync(ct);
 await _db.SaveChangesAsync(ct);
+await _outbox.WriteAsync(new OrderPlaced(orderId, total), tx.GetDbTransaction(), ct);
+await tx.CommitAsync(ct);
 
 // Polling worker dispatches in the background — at-least-once delivery, retry + DLQ baked in
-services.AddZeroAllocOutbox().UseEfCore<MyDbContext>();
+services.AddOutbox().WithEfCore<MyDbContext>().AddOrderPlacedOutbox();
+services.AddSerializerDispatcher(); // AOT-safe serializer, required since 4.0
 ```
 
 **Integration packages**
@@ -497,7 +513,7 @@ public class LoggingBehavior : IPipelineBehavior
 
 ## ZeroAlloc.Resilience
 
-Source-generated, zero-allocation resilience policies for .NET. Add `[Retry]`, `[Timeout]`, `[RateLimit]`, and `[CircuitBreaker]` to an interface — the generator emits a proxy that composes all policies in declaration order with **no heap allocation on the happy path** (beyond the unavoidable `CancellationTokenSource` for timeout). AOT-safe.
+Source-generated, zero-allocation resilience policies for .NET. Add `[Retry]`, `[Timeout]`, `[RateLimit]`, and `[CircuitBreaker]` to an interface — the generator emits a proxy that composes all policies in a fixed order (RateLimit → CircuitBreaker → Timeout → Retry) with **no heap allocation on the happy path** (beyond the unavoidable `CancellationTokenSource` for timeout). AOT-safe.
 
 ```csharp
 [Retry(MaxAttempts = 3, BackoffMs = 200, Jitter = true, PerAttemptTimeoutMs = 1_000)]
@@ -534,11 +550,16 @@ public interface IUserApi
     Task DeleteUserAsync(int id, CancellationToken ct = default);
 }
 
+[JsonSerializable(typeof(UserDto))]
+[JsonSerializable(typeof(List<UserDto>))]
+[JsonSerializable(typeof(CreateUserRequest))]
+internal partial class AppJsonContext : JsonSerializerContext { }
+
 // DI registration — AddIUserApi extension generated by the source generator
 builder.Services.AddIUserApi(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
-    options.UseSerializer<SystemTextJsonSerializer>();
+    options.UseSerializer(new SystemTextJsonSerializer(AppJsonContext.Default));
 });
 
 // Inject and use — no reflection, no proxies at runtime
@@ -548,15 +569,15 @@ public class UserService(IUserApi api)
 }
 ```
 
-**Benchmark** (i9-12900HK, .NET 10.0.4, Windows 11, X64 — in-memory handler, no real network I/O):
+**Benchmark** (i9-12900HK, .NET 10.0.7, BenchmarkDotNet v0.15.8 — in-memory handler, no real network I/O):
 
 | Method | Mean | vs Refit | Allocated |
 |---|---:|:---:|---:|
-| Raw `HttpClient` (baseline) | 1,648 ns | — | 1.38 KB |
-| **ZeroAlloc.Rest GET** | **1,933 ns** | **3.2× faster** | 1.74 KB |
-| Refit GET | 6,123 ns | 1× | 3.03 KB |
-| **ZeroAlloc.Rest QueryParam** | **2,474 ns** | **5.5× faster** | 1.85 KB |
-| Refit QueryParam | 13,509 ns | 1× | 3.67 KB |
+| Raw `HttpClient` (baseline) | 2.09 μs | — | 1.38 KB |
+| **ZeroAlloc.Rest GET** | **3.52 μs** | **3.6× faster** | 1.88 KB |
+| Refit GET | 12.70 μs | 1× | 2.88 KB |
+| **ZeroAlloc.Rest QueryParam** | **4.28 μs** | **3.6× faster** | 1.99 KB |
+| Refit QueryParam | 15.51 μs | 1× | 3.55 KB |
 
 **Integration packages**
 
@@ -564,14 +585,15 @@ public class UserService(IUserApi api)
 - `ZeroAlloc.Rest.SystemTextJson`: System.Text.Json serializer
 - `ZeroAlloc.Rest.MessagePack`: MessagePack serializer
 - `ZeroAlloc.Rest.MemoryPack`: MemoryPack serializer
-- `ZeroAlloc.Rest.Resilience`: `[Retry]`, `[Timeout]` and `[CircuitBreaker]` on client interfaces
+- `ZeroAlloc.Rest.Resilience`: `[Retry]`, `[Timeout]`, `[CircuitBreaker]` and `[RateLimit]` on client interfaces
 - `ZeroAlloc.Rest.Tools.MSBuild`: generates a client interface from an OpenAPI 3.x spec at build time
+- `ZeroAlloc.Rest.Tools`: `zeroalloc generate` .NET tool that generates a client interface from an OpenAPI 3.x spec on the command line
 
 ---
 
 ## ZeroAlloc.Results
 
-Zero-allocation, no-boxing `Result<T, E>` for .NET 9. All five types — `Result`, `Result<T>`, `Result<T,E>`, `UnitResult<E>`, and `Maybe<T>` — are `readonly struct` values. No heap allocation, no boxing, no GC pressure. Full combinator API: `Map`, `Bind`, `Match`, `Tap`, `Ensure`, `Combine`, each with a `*Async` / `ValueTask` variant, plus LINQ query syntax via `Select` and `SelectMany`.
+Zero-allocation, no-boxing `Result<T, E>` for .NET 8, 9 and 10. All five types — `Result`, `Result<T>`, `Result<T,E>`, `UnitResult<E>`, and `Maybe<T>` — are `readonly struct` values. No heap allocation, no boxing, no GC pressure. Full combinator API: `Map`, `Bind`, `Match`, `Tap`, `Ensure`, `Combine`, with `ValueTask`-based `MapAsync`, `BindAsync`, `TapAsync` and `MatchAsync`, plus LINQ query syntax via `Select` and `SelectMany`.
 
 ```csharp
 using ZeroAlloc.Results;
@@ -595,26 +617,26 @@ var greeting =
     select $"Hello, {profile.Name}";
 
 // Async pipelines
-var response = await GetUser(id)
-    .MapAsync(async u  => await LoadPermissions(u))
-    .BindAsync(async p => await BuildToken(p));
+var permissions = await GetUser(id).MapAsync(async u => await LoadPermissions(u));
+var response    = await permissions.BindAsync(async p => await BuildToken(p));
 ```
 
-**Benchmark** (Windows 11, i9-12900HK, .NET 9 — vs [CSharpFunctionalExtensions](https://github.com/vkhorikov/CSharpFunctionalExtensions) 3.7.0):
+**Benchmark** (.NET 10.0.7, i9-12900HK, BenchmarkDotNet v0.15.4):
 
-| Category | ZeroAlloc.Results | CSharpFunctionalExtensions | Allocated | Speedup |
-|---|---:|---:|:---:|:---:|
-| `Create_Success` | 0.33 ns | 2.89 ns | **0 B** both | **8.7×** |
-| `Create_Failure` | 0.30 ns | 1.44 ns | **0 B** both | **4.8×** |
-| `Map` | 1.09 ns | 1.48 ns | **0 B** both | **1.4×** |
-| `Match` | 0.37 ns | 0.68 ns | **0 B** both | **1.8×** |
-| `Chain` (Map+Bind+Match) | 2.28 ns | 2.45 ns | **0 B** both | **1.1×** |
+| Scenario | ZeroAlloc.Results | OneOf | ErrorOr | FluentResults |
+|---|---:|---:|---:|---:|
+| Success construct | 0.4 ns / 0 B | 0.5 ns / 0 B | 0.0 ns / 0 B | 87 ns / **112 B** |
+| Failure construct | 0.3 ns / 0 B | 0.9 ns / 0 B | 63 ns / **184 B** | 87 ns / **272 B** |
+| Failure consume | 0.4 ns / 0 B | 0.9 ns / 0 B | 2.6 ns / 0 B | 214 ns / **240 B** |
+| Hot loop (100 iter, 1-in-3 fail) | **183 ns / 0 B** | 202 ns / 0 B | 7,693 ns / 6,256 B | 39,450 ns / 25,968 B |
+
+Head-to-head vs [CSharpFunctionalExtensions](https://github.com/vkhorikov/CSharpFunctionalExtensions): **1.1–8.7× faster** depending on operation; 0 B both.
 
 ---
 
 ## ZeroAlloc.Saga
 
-Source-generated long-running process orchestration for .NET. Declare a saga as a `partial class` decorated with `[Saga]` — the generator emits state-machine code, notification handlers, and dispatch wiring. Compensation runs in reverse on failure. No reflection, no open-generic resolution at runtime. v1.1 ships durable persistence via `ZeroAlloc.Saga.EfCore` (single shared `SagaInstance` table, row-version OCC, retry-on-conflict). InMemory remains the default; switch to EfCore with one fluent call.
+Source-generated long-running process orchestration for .NET. Declare a saga as a `partial class` decorated with `[Saga]` — the generator emits state-machine code, notification handlers, and dispatch wiring. Compensation runs in reverse on failure. No reflection, no open-generic resolution at runtime. Durable persistence comes from `ZeroAlloc.Saga.EfCore` (single shared `SagaInstance` table, row-version OCC, retry-on-conflict), `ZeroAlloc.Saga.Orm` or `ZeroAlloc.Saga.Redis`. InMemory remains the default; switch store with one fluent call.
 
 ```csharp
 [Saga]
@@ -624,8 +646,9 @@ public partial class OrderFulfillmentSaga
 
     [CorrelationKey] public OrderId Correlation(OrderPlaced e)    => e.OrderId;
     [CorrelationKey] public OrderId Correlation(PaymentCharged e) => e.OrderId;
+    [CorrelationKey] public OrderId Correlation(PaymentDeclined e) => e.OrderId;
 
-    [Step(Order = 1, Compensate = nameof(CancelReservation))]
+    [Step(Order = 1, Compensate = nameof(CancelReservation), CompensateOn = typeof(PaymentDeclined))]
     public ReserveStockCommand ReserveStock(OrderPlaced e)
     {
         OrderId = e.OrderId;
@@ -658,7 +681,7 @@ services.AddSaga()
 
 ## ZeroAlloc.Scheduling
 
-Source-generated background job scheduler for .NET 8 and .NET 10. Decorate any class with `[Job]` and the generator emits the executor, DI registration, and recurring startup wiring — no reflection, no convention scanning at runtime. InMemory, EF Core, ZeroAlloc.ORM and Redis backends.
+Source-generated background job scheduler for .NET 8, 9 and 10. Decorate any class with `[Job]` and the generator emits the executor, DI registration, and recurring startup wiring — no reflection, no convention scanning at runtime. InMemory, EF Core, ZeroAlloc.ORM and Redis backends.
 
 ```csharp
 [Job(Every = Every.Hour)]
@@ -668,8 +691,11 @@ public sealed class CleanupExpiredSessionsJob : IJob
         => /* work */ ValueTask.CompletedTask;
 }
 
-// Generated DI extension wires executor + recurring schedule
-builder.Services.AddZeroAllocScheduling().UseInMemory();
+// Generated AddCleanupExpiredSessionsJob() wires executor + recurring schedule
+builder.Services.AddSerializerDispatcher();   // AOT-safe job serializer, required since 2.0
+builder.Services.AddScheduling()
+    .WithInMemoryStore()
+    .AddCleanupExpiredSessionsJob();
 ```
 
 **Integration packages**
@@ -700,7 +726,8 @@ public partial class OrderPlacedEvent
 }
 
 // Generated: OrderPlacedEventSerializer + AddOrderPlacedEventSerializer()
-services.AddSerializerDispatcher();  // covers all [ZeroAllocSerializable] types in the assembly
+services.AddOrderPlacedEventSerializer();  // registers ISerializer<OrderPlacedEvent>
+services.AddSerializerDispatcher();        // optional: ISerializerDispatcher over all [ZeroAllocSerializable] types
 
 public class OrderStore(ISerializer<OrderPlacedEvent> serializer)
 {
@@ -718,11 +745,10 @@ Backends: `ZeroAlloc.Serialisation.MemoryPack`, `ZeroAlloc.Serialisation.Message
 
 ## ZeroAlloc.Specification
 
-Source-generated specification pattern for .NET 8+. Decorate a `readonly partial struct` with `[Specification]` — the Roslyn generator emits `And<TOther>()`, `Or<TOther>()`, and `Not()` fluent combinators. Composed specs stay `readonly struct` values: zero heap allocation, no closures. Every spec exposes `ToExpression()` returning `Expression<Func<T, bool>>` for direct use with EF Core `Where()`. Two packages: `ZeroAlloc.Specification` (runtime) + `ZeroAlloc.Specification.Generator` (build-time generator). Compile-time diagnostics ZA001–ZA004 enforce correct usage.
+Source-generated specification pattern for .NET 8+. Decorate a `readonly partial struct` with `[Specification]` — the Roslyn generator emits `And<TOther>()`, `Or<TOther>()`, and `Not()` fluent combinators. Composed specs stay `readonly struct` values: zero heap allocation, no closures. Every spec exposes `ToExpression()` returning `Expression<Func<T, bool>>` for direct use with EF Core `Where()`. `ZeroAlloc.Specification` bundles its source generator, so it is the only package to install. Compile-time diagnostics ZA001–ZA005 enforce correct usage.
 
 ```bash
 dotnet add package ZeroAlloc.Specification
-dotnet add package ZeroAlloc.Specification.Generator
 ```
 
 ```csharp
@@ -798,6 +824,7 @@ public interface IOrderService
 }
 
 // Generated: OrderServiceInstrumented — wire up as a DI decorator
+services.AddSingleton<OrderServiceImpl>();
 services.AddSingleton<IOrderService>(sp =>
     new OrderServiceInstrumented(sp.GetRequiredService<OrderServiceImpl>()));
 
@@ -830,7 +857,7 @@ dotnet new za-vertical-slice -o MyApp     # one project, one folder per use case
 | `za-clean` | Four layered projects (Domain / Application / Infrastructure / Api) with NetArchTest boundary rules | Familiar to teams already running layered architectures; horizontal boundaries lock concerns in place |
 | `za-vertical-slice` | One src project, one file per slice — request, validator, handler, endpoint and entity co-located | Lower ceremony; each feature reads top to bottom in ~50–100 lines |
 
-Both ship the same 11-package showcase (Mediator, Validation, Authorization, Mapping, ValueObjects, Inject, Telemetry, Resilience, Rest, Results, ORM), the same SQLite persistence through ZeroAlloc.ORM with no `DbContext`, and the same xUnit + BenchmarkDotNet + NBomber fan-out. They differ in arrangement, not capability — pick on team comfort.
+Both reference the same 11 ZeroAlloc libraries (Mediator, Validation, Authorization, Mapping, ValueObjects, Inject, Resilience, Rest, Results, ORM, Serialisation), and `za-vertical-slice` adds ZeroAlloc.Telemetry. They share the same SQLite persistence through ZeroAlloc.ORM with no `DbContext`, and the same xUnit + BenchmarkDotNet + NBomber fan-out. Otherwise they differ in arrangement, not capability — pick on team comfort.
 
 ---
 
@@ -846,9 +873,11 @@ AllocationGate.AssertBudget(
     label: "valid path");
 ```
 
-`AssertBudgetValueTask<T>` covers `ValueTask<T>`-returning APIs and fails if the task did not complete synchronously, since the awaiter machinery would otherwise pollute the measurement.
+`AssertBudgetValueTask<T>` covers `ValueTask<T>`-returning APIs and fails if the task did not complete synchronously, since the awaiter machinery would otherwise pollute the measurement. For calls that really complete on another thread, `AssertBudgetAsync` and `AssertNoMoreThanAsync` count allocations on every thread.
 
-The package contributes a single file that compiles into the consuming assembly as `internal`, so test infrastructure never reaches a package's public API surface and costs nothing at consumer runtime.
+`TextSnapshot` and `GeneratorSnapshot` add snapshot testing for strings and source-generator output; `GeneratorSnapshot` is compiled only when the consuming project references Roslyn.
+
+The package contributes three source files that compile into the consuming assembly as `internal`, so test infrastructure never reaches a package's public API surface and costs nothing at consumer runtime.
 
 ---
 
@@ -900,7 +929,7 @@ if (!result.IsValid)
 
 ## ZeroAlloc.ValueObjects
 
-Source-generated `Equals`, `GetHashCode`, `==`/`!=`, and `ToString()` for your existing `partial class` and `partial struct` types — **zero allocations**, no boxing, no iterator state machines.
+Source-generated `Equals`, `GetHashCode`, `==`/`!=` and `ToString()` for your existing `partial class` and `partial struct` types. The equality members make **zero allocations**, with no boxing and no iterator state machines; `ToString()` returns a new string.
 
 Targets users of `CSharpFunctionalExtensions.ValueObject` where `GetEqualityComponents()` allocates on every equality check, but works equally well as a lightweight alternative to `record` when you can't or don't want to change the type keyword.
 
@@ -919,10 +948,20 @@ public partial struct CustomerId
     public Guid Value { get; }
 }
 
-// Generated: Equals, GetHashCode (HashCode.Combine), ==, !=, ToString — zero alloc
+// Generated: Equals, GetHashCode (HashCode.Combine), ==, != — zero alloc — plus ToString
 ```
 
 Fine-grained control via `[EqualityMember]` (opt-in) and `[IgnoreEqualityMember]` (opt-out) attributes.
+
+`[TypedId]` generates strongly-typed IDs on a `readonly partial record struct`: ULID, UUIDv7, Snowflake or sequential values, with `New()`, `Parse`, `IParsable`/`ISpanParsable`, an AOT-safe JSON converter and EF Core conventions.
+
+```csharp
+[TypedId(Strategy = IdStrategy.Ulid)]
+public readonly partial record struct OrderId;
+
+OrderId id = OrderId.New();          // monotonic ULID, 26-char base32 string form
+OrderId parsed = OrderId.Parse(id.ToString());
+```
 
 **Benchmark** (i9-12900HK, .NET 9):
 
