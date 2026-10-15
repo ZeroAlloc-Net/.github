@@ -64,6 +64,11 @@ path, a one-time cache fill.
   does. Allocating a new buffer, writer or machine per operation in the benchmark hides the real number.
 - Target the library's LTS frameworks, so every code path that differs per framework is measured.
 - Locally, run BenchmarkDotNet with `--inProcess`; deep worktree paths exceed MAX_PATH otherwise.
+- Publish exact allocations and same-run ratios, never absolute timings. The benchmark host is a shared
+  VM with background load and an unknown core layout, so nanoseconds drift between runs while the
+  ratio of two benchmarks measured side by side holds. Mark a `Baseline`, run with `--launchCount 3`,
+  pin the process to fixed CPUs with `taskset`, and give the spread when a ratio varies across launches.
+  Label every table: allocations are exact, speed is a same-run ratio.
 
 ## 5. NativeAOT
 
