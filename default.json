@@ -65,7 +65,13 @@
     "repo starts publishing one."
   ],
   "minimumReleaseAge": "3 days",
+  "platformAutomerge": false,
   "packageRules": [
+    {
+      "description": "Auto-merge non-major updates once required checks are green, as github>MarcelRoozekrans/renovate-config does. Majors stay manual. Renovate merges itself (platformAutomerge off): GitHub native auto-merge waits for the required review even for an app with a ruleset bypass; the Renovate app (2740) is a bypass actor on every repo's Main ruleset since 2026-10-16.",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "automerge": true
+    },
     {
       "description": [
         "First-party packages skip the three-day wait.",
