@@ -65,12 +65,6 @@ on:
           exactly as release-please's own push does; a push made with
           GITHUB_TOKEN triggers no workflows.
         required: false
-      RELEASE_TOKEN:
-        description: >-
-          Deprecated: the PAT callers passed before the release bot App. Used
-          only when RELEASE_BOT_PRIVATE_KEY is absent; remove once no caller
-          passes it.
-        required: false
 
 permissions:
   contents: write
@@ -95,7 +89,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch }}
-          token: ${{ steps.app-token.outputs.token || secrets.RELEASE_TOKEN || github.token }}
+          token: ${{ steps.app-token.outputs.token || github.token }}
 
       - name: Checkout the shared script
         uses: actions/checkout@v7
