@@ -86,8 +86,10 @@ on:
         default: ''
       pack-root:
         description: >-
-          Directory searched recursively for projects to pack. Every project under it that
-          MSBuild evaluates as IsPackable=true is packed; nothing is listed by hand.
+          Directory searched recursively for projects to pack, or a single .csproj file to pack
+          only that project. Every project found that MSBuild evaluates as IsPackable=true is
+          packed; nothing is listed by hand. ZeroAlloc.Templates passes its one project file so
+          the template content projects under content/ are never discovered.
         required: false
         type: string
         default: 'src'
