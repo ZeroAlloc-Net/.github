@@ -26,7 +26,10 @@ name: Ship release tracking
 #     with:
 #       branch: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
 #     secrets:
-#       RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+#       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+#
+# The release bot App's client ID is read from the RELEASE_BOT_CLIENT_ID
+# variable, which an org-level variable provides to every caller.
 #
 # Give the calling workflow a `concurrency: { group: release-please,
 # cancel-in-progress: false }`. Two quick pushes to main would otherwise run
@@ -55,12 +58,18 @@ on:
         type: string
         default: main
     secrets:
+      RELEASE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the release bot GitHub App. The job mints a token from it
+          and pushes with that, so the push triggers the release PR's checks
+          exactly as release-please's own push does; a push made with
+          GITHUB_TOKEN triggers no workflows.
+        required: false
       RELEASE_TOKEN:
         description: >-
-          Token to push with. Pass the same PAT release-please uses, so this push
-          triggers the release PR's checks exactly as release-please's own push
-          does; a push made with GITHUB_TOKEN leaves them waiting for approval.
-          Falls back to GITHUB_TOKEN when empty.
+          Deprecated: the PAT callers passed before the release bot App. Used
+          only when RELEASE_BOT_PRIVATE_KEY is absent; remove once no caller
+          passes it.
         required: false
 
 permissions:
@@ -69,12 +78,24 @@ permissions:
 jobs:
   ship-release-tracking:
     runs-on: ubuntu-latest
+    env:
+      # Secrets cannot appear in a step's `if:`, so expose only whether one is set.
+      HAS_BOT_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY != '' }}
     steps:
+      - name: Mint a release bot token
+        id: app-token
+        if: env.HAS_BOT_KEY == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Checkout release PR branch
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch }}
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          token: ${{ steps.app-token.outputs.token || secrets.RELEASE_TOKEN || github.token }}
 
       - name: Checkout the shared script
         uses: actions/checkout@v7
