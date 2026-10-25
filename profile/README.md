@@ -981,6 +981,18 @@ OrderId parsed = OrderId.Parse(id.ToString());
 
 ---
 
+## Built on ZeroAlloc
+
+Projects that use these libraries in practice:
+
+- [AI.Sentinel](https://github.com/MarcelRoozekrans/AI.Sentinel): security monitoring middleware for `IChatClient`, using ZeroAlloc.Analyzers and ZeroAlloc.Authorization.
+- [Minos.NET](https://github.com/MarcelRoozekrans/Minos.NET): typed, source-generated decision questions, using Analyzers, Resilience, Rest, Results, Telemetry and Validation.
+- [Rag.NET](https://github.com/MarcelRoozekrans/Rag.NET): a modular retrieval-augmented generation pipeline, using Analyzers, Mediator, Inject, Pipeline, Rest, Results, Specification, Validation and ValueObjects.
+- [Roslyn CodeLens MCP](https://github.com/MarcelRoozekrans/roslyn-codelens-mcp): semantic .NET code intelligence for AI agents, using Analyzers.
+- [MemoryLens MCP](https://github.com/MarcelRoozekrans/memorylens-mcp): on-demand .NET memory profiling for AI agents, using Analyzers.
+
+---
+
 ## Sponsor
 
 ZeroAlloc-Net is maintained in spare time. If these libraries save you allocations, GC pauses, or migration effort, consider sponsoring to keep the work going.
