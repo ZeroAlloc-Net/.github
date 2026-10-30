@@ -242,6 +242,7 @@ Optional `ZeroAlloc.EventSourcing.Telemetry` package adds BCL-based `ActivitySou
 - `ZeroAlloc.EventSourcing.InMemory`: in-process event store for tests and prototypes
 - `ZeroAlloc.EventSourcing.PostgreSql`: PostgreSQL event store
 - `ZeroAlloc.EventSourcing.SqlServer`: SQL Server event store
+- `ZeroAlloc.EventSourcing.Sql`: checkpoint, snapshot, projection and dead-letter stores for SQL Server and PostgreSQL
 - `ZeroAlloc.EventSourcing.Sqlite`: SQLite event store, AOT-clean via Microsoft.Data.Sqlite
 - `ZeroAlloc.EventSourcing.Kafka`: consumes events from Kafka topics with checkpointed position tracking
 - `ZeroAlloc.EventSourcing.Mediator`: republishes live committed events through ZeroAlloc.Mediator notifications
@@ -439,7 +440,7 @@ public sealed record Customer(int Id, string Name);
 
 A positional record whose order matches the `SELECT` needs no mapping configuration, and a nullable return type turns an empty result set into `null`. `[Command]` and `[StoredProcedure]` cover writes and procs, `IAsyncEnumerable<T>` returns stream without buffering, and `MigrationRunner` applies embedded SQL migrations on SQLite, Postgres and SQL Server.
 
-Ships as four packages: the runtime extensions, the `Abstractions` attributes, the `Generator` itself, and `ZeroAlloc.TypeConversions` — a convention catalog shared with ZeroAlloc.Mapping.
+Ships as five packages: the `ZeroAlloc.ORM` runtime extensions, the `ZeroAlloc.ORM.Abstractions` attributes, the `ZeroAlloc.ORM.Generator` itself, `ZeroAlloc.ORM.Linq`, which on PostgreSQL lets a query's SQL be written as a LINQ chain that the generator translates at build time, and `ZeroAlloc.TypeConversions` — a convention catalog shared with ZeroAlloc.Mapping.
 
 ---
 
@@ -531,7 +532,7 @@ public interface IExternalService
 
 ## ZeroAlloc.Rest
 
-Source-generated, Native AOT-compatible REST client for .NET 10+. Decorate an interface with `[ZeroAllocRestClient]` and annotate methods with `[Get]`, `[Post]`, `[Delete]`, etc. — the Roslyn generator emits a sealed `*Client` class at compile time. No runtime reflection, no dynamic proxies, no `DynamicMethod`. Path, query, body, and header parameters are handled via attributes. Returns integrate with `ZeroAlloc.Results` (`Result<T, HttpError>`) for typed error handling without exceptions on 4xx/5xx responses.
+Source-generated, Native AOT-compatible REST client for .NET 8 and .NET 10. Decorate an interface with `[ZeroAllocRestClient]` and annotate methods with `[Get]`, `[Post]`, `[Delete]`, etc. — the Roslyn generator emits a sealed `*Client` class at compile time. No runtime reflection, no dynamic proxies, no `DynamicMethod`. Path, query, body, and header parameters are handled via attributes. Returns integrate with `ZeroAlloc.Results` (`Result<T, HttpError>`) for typed error handling without exceptions on 4xx/5xx responses.
 
 ```csharp
 [ZeroAllocRestClient]
@@ -588,6 +589,8 @@ public class UserService(IUserApi api)
 - `ZeroAlloc.Rest.Resilience`: `[Retry]`, `[Timeout]`, `[CircuitBreaker]` and `[RateLimit]` on client interfaces
 - `ZeroAlloc.Rest.Tools.MSBuild`: generates a client interface from an OpenAPI 3.x spec at build time
 - `ZeroAlloc.Rest.Tools`: `zeroalloc generate` .NET tool that generates a client interface from an OpenAPI 3.x spec on the command line
+- `ZeroAlloc.Rest.Anthropic`: client for the Anthropic Messages API, with streaming, tools and prompt caching
+- `ZeroAlloc.Rest.Ollama`: client for Ollama embeddings
 
 ---
 
