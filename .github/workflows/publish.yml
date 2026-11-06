@@ -13,16 +13,31 @@ name: Publish
 #     with:
 #       tag: ${{ needs.release-please.outputs.tag_name }}
 #       version: ${{ needs.release-please.outputs.version }}
-#       nuget-user: ${{ vars.NUGET_USER }}
-#     permissions:
-#       id-token: write
-#       contents: write
+#       push: false
 #
-# That logs in to nuget.org as a trusted publisher: the job's OIDC token is exchanged for a
-# short-lived API key, so no secret is stored. It needs a trusted publisher policy on nuget.org for
-# the repository and the caller's workflow file (release-please.yml, or publish-from-manifest.yml
-# for the rescue), and `id-token: write` on the calling job. Without `nuget-user` the workflow
-# pushes with the NUGET_API_KEY secret as before, so a repository switches when its policy exists:
+#   push:
+#     needs: [release-please, publish]
+#     if: ${{ needs.release-please.outputs.release_created == 'true' }}
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: write
+#       packages: write
+#       id-token: write
+#     steps:
+#       - uses: ZeroAlloc-Net/.github/.github/actions/nuget-push@main
+#         with:
+#           tag: ${{ needs.release-please.outputs.tag_name }}
+#           version: ${{ needs.release-please.outputs.version }}
+#           nuget-user: ${{ vars.NUGET_USER }}
+#
+# With `push: false` this workflow builds, tests, packs and verifies, and hands the packages to the
+# caller's own `push` job through an artifact. The push has to run in a job of the caller's workflow
+# because nuget.org validates a trusted publisher against the workflow that runs the job, and a job
+# inside a reusable workflow reports this file instead of the caller's. The nuget-push action logs
+# in with the job's OIDC token, which becomes a short-lived key, so no secret is stored; it needs a
+# trusted publisher policy for the repository and the caller's workflow file. Without nuget-user it
+# pushes with the nuget-api-key input. With the default `push: true` this workflow pushes itself with
+# the NUGET_API_KEY secret, as before:
 #
 #     secrets:
 #       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
@@ -136,11 +151,16 @@ on:
         required: false
         type: boolean
         default: false
-      nuget-user:
+      push:
         description: >-
-          The nuget.org user name to log in as with a trusted publisher policy, usually
-          `vars.NUGET_USER`. Empty pushes with the NUGET_API_KEY secret instead. Needs
-          `id-token: write` on the calling job.
+          Push to nuget.org, wait for it and verify the published bytes in this workflow, with the
+          NUGET_API_KEY secret. False stops after the packages are built and verified, for a caller
+          whose own `push` job uses the nuget-push action; a trusted publisher needs that.
+        required: false
+        type: boolean
+        default: true
+      nuget-user:
+        description: 'Ignored. Trusted publishing runs in the caller, in the nuget-push action.'
         required: false
         type: string
         default: ''
@@ -302,23 +322,22 @@ jobs:
           path: ${{ env.PACKAGES_DIR }}
           if-no-files-found: ignore
 
-      # Trusted publishing: the job's OIDC token is exchanged for an API key that lives for an hour
-      # and is bound to this repository and workflow, so there is no long-lived key to expire or leak.
-      - name: Log in to nuget.org as a trusted publisher
-        id: nuget-login
-        if: ${{ !inputs.dry-run && inputs.nuget-user != '' }}
-        uses: NuGet/login@v1
+      - name: Keep the package metadata
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
         with:
-          user: ${{ inputs.nuget-user }}
+          name: nupkg-meta-${{ inputs.version }}
+          path: ${{ env.META }}
+          if-no-files-found: ignore
 
       - name: Push to nuget.org
-        if: ${{ !inputs.dry-run }}
+        if: ${{ !inputs.dry-run && inputs.push }}
         env:
-          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error::No nuget.org credential: set nuget-user for a trusted publisher, or pass the NUGET_API_KEY secret"
+            echo "::error::NUGET_API_KEY is empty; pass the secret, or use push false with the nuget-push action"
             exit 1
           fi
           # .snupkg files next to the .nupkg go to the symbol server with them.
@@ -328,7 +347,7 @@ jobs:
             --skip-duplicate
 
       - name: Push to GitHub Packages
-        if: ${{ !inputs.dry-run && inputs.github-packages }}
+        if: ${{ !inputs.dry-run && inputs.push && inputs.github-packages }}
         env:
           GH_PACKAGES_TOKEN: ${{ github.token }}
         run: |
@@ -340,17 +359,17 @@ jobs:
             --no-symbols
 
       - name: Attach to the GitHub release
-        if: ${{ !inputs.dry-run && inputs.release-assets }}
+        if: ${{ !inputs.dry-run && inputs.push && inputs.release-assets }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$PACKAGES_DIR"/*.nupkg --clobber --repo "$GITHUB_REPOSITORY"
 
       - name: Wait for nuget.org
-        if: ${{ !inputs.dry-run }}
+        if: ${{ !inputs.dry-run && inputs.push }}
         run: |
           python3 "$CHECK" await --version "$VERSION" --expect "$META/expected-ids.txt" \
             --timeout-minutes ${{ inputs.nuget-timeout-minutes }} --download "$GITHUB_WORKSPACE/.publish/published"
 
       - name: Verify the published packages
-        if: ${{ !inputs.dry-run }}
+        if: ${{ !inputs.dry-run && inputs.push }}
         run: python3 "$CHECK" verify "$GITHUB_WORKSPACE/.publish/published" --version "$VERSION" --expect "$META/expected-ids.txt" --own-assemblies "$META/own-assemblies.txt"
