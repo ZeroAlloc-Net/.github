@@ -1,0 +1,121 @@
+name: Push to nuget.org
+description: >-
+  Pushes the packages the shared publish workflow built, then waits for nuget.org to serve them and
+  verifies the published bytes. Call it from a job of the repository's own workflow, after the
+  publish job ran with `push: false`. nuget.org validates a trusted publisher against the workflow
+  that runs the job, and a job inside a reusable workflow reports the reusable one, so the login
+  has to happen here. A composite action runs as steps of the caller's job, which gives the right
+  claim.
+
+inputs:
+  tag:
+    description: The release tag, as passed to the publish job.
+    required: true
+  version:
+    description: The release version without a leading v, as passed to the publish job.
+    required: true
+  nuget-user:
+    description: >-
+      The nuget.org user name that created the trusted publisher policies, usually
+      `vars.NUGET_USER`. Empty pushes with nuget-api-key. The calling job needs `id-token: write`.
+    required: false
+    default: ''
+  nuget-api-key:
+    description: nuget.org API key, used only when nuget-user is empty.
+    required: false
+    default: ''
+  github-packages:
+    description: 'Also push to GitHub Packages for the repository owner. The job needs `packages: write`.'
+    required: false
+    default: 'true'
+  release-assets:
+    description: 'Attach the .nupkg files to the GitHub release of `tag`. The job needs `contents: write`.'
+    required: false
+    default: 'true'
+  nuget-timeout-minutes:
+    description: How long to wait for every package to appear on nuget.org before failing.
+    required: false
+    default: '30'
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch the packages
+      uses: actions/download-artifact@v8
+      with:
+        name: nupkg-${{ inputs.version }}
+        path: ${{ github.workspace }}/.publish/nupkg
+
+    - name: Fetch the package metadata
+      uses: actions/download-artifact@v8
+      with:
+        name: nupkg-meta-${{ inputs.version }}
+        path: ${{ github.workspace }}/.publish/meta
+
+    # Trusted publishing: the job's OIDC token is exchanged for an API key that lives for an hour
+    # and is bound to this repository and workflow, so there is no long-lived key to expire.
+    - name: Log in to nuget.org as a trusted publisher
+      id: nuget-login
+      if: ${{ inputs.nuget-user != '' }}
+      uses: NuGet/login@v1
+      with:
+        user: ${{ inputs.nuget-user }}
+
+    - name: Push to nuget.org
+      shell: bash
+      env:
+        NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY || inputs.nuget-api-key }}
+        PACKAGES_DIR: ${{ github.workspace }}/.publish/nupkg
+      run: |
+        set -euo pipefail
+        if [ -z "$NUGET_API_KEY" ]; then
+          echo "::error::No nuget.org credential: set nuget-user for a trusted publisher, or pass nuget-api-key"
+          exit 1
+        fi
+        # .snupkg files next to the .nupkg go to the symbol server with them.
+        dotnet nuget push "$PACKAGES_DIR/*.nupkg" \
+          --source https://api.nuget.org/v3/index.json \
+          --api-key "$NUGET_API_KEY" \
+          --skip-duplicate
+
+    - name: Push to GitHub Packages
+      if: ${{ inputs.github-packages == 'true' }}
+      shell: bash
+      env:
+        GH_PACKAGES_TOKEN: ${{ github.token }}
+        PACKAGES_DIR: ${{ github.workspace }}/.publish/nupkg
+      run: |
+        # GitHub Packages hosts no symbols.
+        dotnet nuget push "$PACKAGES_DIR/*.nupkg" \
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+          --api-key "$GH_PACKAGES_TOKEN" \
+          --skip-duplicate \
+          --no-symbols
+
+    - name: Attach to the GitHub release
+      if: ${{ inputs.release-assets == 'true' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ inputs.tag }}
+        PACKAGES_DIR: ${{ github.workspace }}/.publish/nupkg
+      run: gh release upload "$TAG" "$PACKAGES_DIR"/*.nupkg --clobber --repo "$GITHUB_REPOSITORY"
+
+    - name: Wait for nuget.org
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        META: ${{ github.workspace }}/.publish/meta
+      run: |
+        python3 "${{ github.action_path }}/../../../scripts/nupkg-check.py" await --version "$VERSION" \
+          --expect "$META/expected-ids.txt" --timeout-minutes ${{ inputs.nuget-timeout-minutes }} \
+          --download "$GITHUB_WORKSPACE/.publish/published"
+
+    - name: Verify the published packages
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        META: ${{ github.workspace }}/.publish/meta
+      run: |
+        python3 "${{ github.action_path }}/../../../scripts/nupkg-check.py" verify "$GITHUB_WORKSPACE/.publish/published" \
+          --version "$VERSION" --expect "$META/expected-ids.txt" --own-assemblies "$META/own-assemblies.txt"
