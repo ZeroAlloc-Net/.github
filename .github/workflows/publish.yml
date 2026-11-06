@@ -13,6 +13,17 @@ name: Publish
 #     with:
 #       tag: ${{ needs.release-please.outputs.tag_name }}
 #       version: ${{ needs.release-please.outputs.version }}
+#       nuget-user: ${{ vars.NUGET_USER }}
+#     permissions:
+#       id-token: write
+#       contents: write
+#
+# That logs in to nuget.org as a trusted publisher: the job's OIDC token is exchanged for a
+# short-lived API key, so no secret is stored. It needs a trusted publisher policy on nuget.org for
+# the repository and the caller's workflow file (release-please.yml, or publish-from-manifest.yml
+# for the rescue), and `id-token: write` on the calling job. Without `nuget-user` the workflow
+# pushes with the NUGET_API_KEY secret as before, so a repository switches when its policy exists:
+#
 #     secrets:
 #       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 #
@@ -125,6 +136,14 @@ on:
         required: false
         type: boolean
         default: false
+      nuget-user:
+        description: >-
+          The nuget.org user name to log in as with a trusted publisher policy, usually
+          `vars.NUGET_USER`. Empty pushes with the NUGET_API_KEY secret instead. Needs
+          `id-token: write` on the calling job.
+        required: false
+        type: string
+        default: ''
       tool-ref:
         description: >-
           Ref of ZeroAlloc-Net/.github to take scripts/nupkg-check.py from. Keep it equal to
@@ -134,8 +153,10 @@ on:
         default: main
     secrets:
       NUGET_API_KEY:
-        description: 'nuget.org API key with push rights for every package the repository publishes.'
-        required: true
+        description: >-
+          nuget.org API key with push rights for every package the repository publishes. Needed
+          only when `nuget-user` is empty.
+        required: false
 
 jobs:
   publish:
@@ -281,14 +302,23 @@ jobs:
           path: ${{ env.PACKAGES_DIR }}
           if-no-files-found: ignore
 
+      # Trusted publishing: the job's OIDC token is exchanged for an API key that lives for an hour
+      # and is bound to this repository and workflow, so there is no long-lived key to expire or leak.
+      - name: Log in to nuget.org as a trusted publisher
+        id: nuget-login
+        if: ${{ !inputs.dry-run && inputs.nuget-user != '' }}
+        uses: NuGet/login@v1
+        with:
+          user: ${{ inputs.nuget-user }}
+
       - name: Push to nuget.org
         if: ${{ !inputs.dry-run }}
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error::NUGET_API_KEY is empty"
+            echo "::error::No nuget.org credential: set nuget-user for a trusted publisher, or pass the NUGET_API_KEY secret"
             exit 1
           fi
           # .snupkg files next to the .nupkg go to the symbol server with them.
