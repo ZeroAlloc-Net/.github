@@ -39,6 +39,13 @@ permissions:
   contents: read
   pull-requests: write
 
+# Renovate often pushes and enables auto-merge within a second, which starts
+# two runs. One run per PR at a time, and the step below skips a run whose
+# commit is no longer the PR's head.
+concurrency:
+  group: renovate-approve-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   approve:
     if: >-
@@ -56,6 +63,11 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          current=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq .head.sha)
+          if [ "$current" != "$HEAD_SHA" ]; then
+            echo "Head moved from $HEAD_SHA to $current; the run for the new head approves it."
+            exit 0
+          fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
             -f commit_id="$HEAD_SHA" -f event=APPROVE \
             -f body="Approved for auto-merge: a non-major Renovate update. GitHub merges it once the required checks pass." \
