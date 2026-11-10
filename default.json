@@ -65,10 +65,10 @@
     "repo starts publishing one."
   ],
   "minimumReleaseAge": "3 days",
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "packageRules": [
     {
-      "description": "Auto-merge non-major updates once required checks are green, as github>MarcelRoozekrans/renovate-config does. Majors stay manual. Renovate merges itself (platformAutomerge off): GitHub native auto-merge waits for the required review even for an app with a ruleset bypass; the Renovate app (2740) is a bypass actor on every repo's Main ruleset since 2026-10-16.",
+      "description": "Auto-merge non-major updates once required checks are green, as github>MarcelRoozekrans/renovate-config does. Majors stay manual. platformAutomerge is on, so GitHub's native auto-merge does the merge and waits for every required check on the Main ruleset. The one required approval comes from each repo's renovate-approve workflow, which approves only a renovate[bot] PR that has native auto-merge enabled. Renovate merging itself through a ruleset bypass skipped the required checks too: MarcelRoozekrans/Rag.NET#852 merged with them missing. See MarcelRoozekrans/Rag.NET#951.",
       "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
       "automerge": true
     },
