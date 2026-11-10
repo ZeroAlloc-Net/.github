@@ -24,3 +24,7 @@ ZeroAlloc-Net is home to a family of high-performance .NET libraries built aroun
 - **Zero allocations** — no heap pressure at steady state
 - **Native AOT compatible** — no reflection, no runtime code generation
 - **Compile-time correctness** — errors and wiring validated by Roslyn at build time, not at startup
+
+## Reviews
+
+Pull requests get an automated review from [CodeRabbit](https://coderabbit.ai), configured centrally in [`ZeroAlloc-Net/coderabbit`](https://github.com/ZeroAlloc-Net/coderabbit).
