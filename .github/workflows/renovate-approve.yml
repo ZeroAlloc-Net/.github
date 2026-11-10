@@ -1,0 +1,62 @@
+name: Renovate approve
+
+# Reusable workflow that approves the Renovate PRs the shared preset auto-merges,
+# so GitHub's native auto-merge can merge them once every required check on the
+# Main ruleset has passed. This replaces the Renovate app's ruleset bypass, which
+# let renovate[bot] merge past every rule, required checks included
+# (MarcelRoozekrans/Rag.NET#951).
+#
+# The gate is native auto-merge itself. Renovate turns it on only for updates the
+# preset marks automerge (non-major), so the preset stays the one place that
+# decides what merges unattended. A major, or any PR Renovate did not mark, is
+# never approved here.
+#
+# Only events sent by renovate[bot] on its own same-repo PR are approved. The
+# Main ruleset dismisses stale approvals on push, so the synchronize run
+# re-approves after Renovate rebases; a push by anyone else to a Renovate branch
+# gets no new approval and the PR waits for a human review.
+#
+# pull_request_target runs with the base repo's token. Nothing from the PR is
+# checked out or executed; the job only calls the reviews API.
+#
+# Needs the repo setting "Allow GitHub Actions to create and approve pull
+# requests" (Settings > Actions > General). Consume from a repo with:
+#
+#   on:
+#     pull_request_target:
+#       types: [auto_merge_enabled, synchronize, reopened]
+#   permissions:
+#     contents: read
+#     pull-requests: write
+#   jobs:
+#     approve:
+#       uses: ZeroAlloc-Net/.github/.github/workflows/renovate-approve.yml@main
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  approve:
+    if: >-
+      github.event_name == 'pull_request_target'
+      && github.event.pull_request.user.login == 'renovate[bot]'
+      && github.event.sender.login == 'renovate[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.auto_merge != null
+      && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+            -f commit_id="$HEAD_SHA" -f event=APPROVE \
+            -f body="Approved for auto-merge: a non-major Renovate update. GitHub merges it once the required checks pass." \
+            --jq '"approved review " + (.id|tostring) + " on " + .commit_id'
