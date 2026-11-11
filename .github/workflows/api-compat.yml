@@ -63,7 +63,10 @@ on:
         type: string
         default: ''
       dotnet-version:
-        description: '.NET SDK version installed on the runner. Default 10.0.x.'
+        description: >-
+          Extra .NET SDK version or versions installed on the runner, one per
+          line. Installed next to the SDK pinned in the caller's global.json,
+          which is read automatically when present. Default 10.0.x.
         required: false
         type: string
         default: '10.0.x'
@@ -202,6 +205,12 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
+          # Both inputs are additive: the SDK pinned in global.json (when the
+          # repo has one) plus the versions from dotnet-version. Without the
+          # pin, a repo on SDK 11 fails with exit 155 because only 10.0.x was
+          # installed. hashFiles is empty for a missing file, so repos with no
+          # global.json pass an empty input, which setup-dotnet ignores.
+          global-json-file: ${{ hashFiles('global.json') != '' && 'global.json' || '' }}
           dotnet-version: ${{ inputs.dotnet-version }}
 
       - name: Install ApiCompat tool
