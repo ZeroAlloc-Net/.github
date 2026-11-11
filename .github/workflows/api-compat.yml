@@ -63,7 +63,10 @@ on:
         type: string
         default: ''
       dotnet-version:
-        description: '.NET SDK version installed on the runner. Default 10.0.x.'
+        description: >-
+          Extra .NET SDK version or versions installed on the runner, one per
+          line. Installed next to the SDK pinned in the caller's global.json,
+          which is read automatically when present. Default 10.0.x.
         required: false
         type: string
         default: '10.0.x'
@@ -199,10 +202,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # setup-dotnet v6 turns a latestMajor roll-forward pin into an LTS channel
+      # install, which can be older than the pinned SDK. Read the exact version
+      # for that one policy and install it explicitly below.
+      - name: Read latestMajor SDK pin
+        id: pin
+        if: ${{ hashFiles('global.json') != '' }}
+        run: |
+          pin=$(jq -r 'select(.sdk.rollForward == "latestMajor") | .sdk.version // empty' global.json)
+          echo "sdk=$pin" >> "$GITHUB_OUTPUT"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ inputs.dotnet-version }}
+          # All inputs are additive: the SDK pinned in global.json (when the
+          # repo has one) plus the versions from dotnet-version. Without the
+          # pin, a repo on SDK 11 fails with exit 155 because only 10.0.x was
+          # installed. hashFiles is empty for a missing file, so repos with no
+          # global.json pass an empty input, which setup-dotnet ignores.
+          global-json-file: ${{ hashFiles('global.json') != '' && 'global.json' || '' }}
+          dotnet-version: |
+            ${{ inputs.dotnet-version }}
+            ${{ steps.pin.outputs.sdk }}
 
       - name: Install ApiCompat tool
         run: dotnet tool install --global Microsoft.DotNet.ApiCompat.Tool
