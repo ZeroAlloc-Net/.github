@@ -203,14 +203,28 @@ jobs:
       - uses: actions/checkout@v7
 
       # setup-dotnet v6 turns a latestMajor roll-forward pin into an LTS channel
-      # install, which can be older than the pinned SDK. Read the exact version
-      # for that one policy and install it explicitly below.
+      # install, which can be older than the pinned SDK. For that one policy,
+      # install the newest SDK of the pinned major.minor below. latestMajor
+      # treats sdk.version as a minimum, so the exact version is not requested:
+      # a minimum such as 10.0.199 need not exist as a release.
+      # global.json may hold // and /* */ comments, which jq rejects, so the
+      # file is read with a parser that drops comments outside strings.
       - name: Read latestMajor SDK pin
         id: pin
         if: ${{ hashFiles('global.json') != '' }}
+        shell: python
         run: |
-          pin=$(jq -r 'select(.sdk.rollForward == "latestMajor") | .sdk.version // empty' global.json)
-          echo "sdk=$pin" >> "$GITHUB_OUTPUT"
+          import json, os, re
+          text = open("global.json", encoding="utf-8-sig").read()
+          token = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.S)
+          text = token.sub(lambda m: m.group(0) if m.group(0)[0] == '"' else " ", text)
+          sdk = json.loads(text).get("sdk") or {}
+          channel = ""
+          if sdk.get("rollForward") == "latestMajor" and sdk.get("version"):
+              major, minor = sdk["version"].split(".")[:2]
+              channel = f"{major}.{minor}.x"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"sdk={channel}\n")
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
