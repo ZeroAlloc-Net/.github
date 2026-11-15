@@ -252,7 +252,7 @@ Optional `ZeroAlloc.EventSourcing.Telemetry` package adds BCL-based `ActivitySou
 
 ## ZeroAlloc.Flux
 
-Source-generated Flux/Redux state management for .NET 8 and .NET 10. The Roslyn generator wires every action to its reducer at compile time — no reflection, no runtime dictionaries, no virtual dispatch. The dispatch hot path allocates **0 bytes** per call when handlers complete synchronously.
+Source-generated Flux/Redux state management for .NET 8, .NET 10 and .NET 11. The Roslyn generator wires every action to its reducer at compile time — no reflection, no runtime dictionaries, no virtual dispatch. The dispatch hot path allocates **0 bytes** per call when handlers complete synchronously.
 
 ```csharp
 using ZeroAlloc.Flux;
@@ -532,7 +532,7 @@ public interface IExternalService
 
 ## ZeroAlloc.Rest
 
-Source-generated, Native AOT-compatible REST client for .NET 8 and .NET 10. Decorate an interface with `[ZeroAllocRestClient]` and annotate methods with `[Get]`, `[Post]`, `[Delete]`, etc. — the Roslyn generator emits a sealed `*Client` class at compile time. No runtime reflection, no dynamic proxies, no `DynamicMethod`. Path, query, body, and header parameters are handled via attributes. Returns integrate with `ZeroAlloc.Results` (`Result<T, HttpError>`) for typed error handling without exceptions on 4xx/5xx responses.
+Source-generated, Native AOT-compatible REST client for .NET 8, .NET 10 and .NET 11. Decorate an interface with `[ZeroAllocRestClient]` and annotate methods with `[Get]`, `[Post]`, `[Delete]`, etc. — the Roslyn generator emits a sealed `*Client` class at compile time. No runtime reflection, no dynamic proxies, no `DynamicMethod`. Path, query, body, and header parameters are handled via attributes. Returns integrate with `ZeroAlloc.Results` (`Result<T, HttpError>`) for typed error handling without exceptions on 4xx/5xx responses.
 
 ```csharp
 [ZeroAllocRestClient]
@@ -596,7 +596,7 @@ public class UserService(IUserApi api)
 
 ## ZeroAlloc.Results
 
-Zero-allocation, no-boxing `Result<T, E>` for .NET 8, 9 and 10. All five types — `Result`, `Result<T>`, `Result<T,E>`, `UnitResult<E>`, and `Maybe<T>` — are `readonly struct` values. No heap allocation, no boxing, no GC pressure. Full combinator API: `Map`, `Bind`, `Match`, `Tap`, `Ensure`, `Combine`, with `ValueTask`-based `MapAsync`, `BindAsync`, `TapAsync` and `MatchAsync`, plus LINQ query syntax via `Select` and `SelectMany`.
+Zero-allocation, no-boxing `Result<T, E>` for .NET 8, 9, 10 and 11. All five types — `Result`, `Result<T>`, `Result<T,E>`, `UnitResult<E>`, and `Maybe<T>` — are `readonly struct` values. No heap allocation, no boxing, no GC pressure. Full combinator API: `Map`, `Bind`, `Match`, `Tap`, `Ensure`, `Combine`, with `ValueTask`-based `MapAsync`, `BindAsync`, `TapAsync` and `MatchAsync`, plus LINQ query syntax via `Select` and `SelectMany`.
 
 ```csharp
 using ZeroAlloc.Results;
