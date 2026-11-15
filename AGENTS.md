@@ -115,6 +115,7 @@ The templates are what adopters copy, so wiring mistakes there spread.
 ## 8. Shipping changes
 
 - Fix review findings in the change under review; file an issue only for what genuinely cannot go in it.
+- Commits follow Conventional Commits; release-please reads them on the default branch.
 - A change that adds public API is `feat:`, even when its purpose is performance.
 - Public API changes are additive. Never add an optional parameter to a shipped signature; api-compat
   guards it. A breaking end state goes in an issue labelled `next-major`.
