@@ -24,7 +24,7 @@ None of these show up in a review unless you look for them. Each one shipped in 
 
 | Pattern | Where it hid | Instead |
 |---|---|---|
-| `async ValueTask` that only awaits and returns | AdoNet.Async adapters | `return new ValueTask<T>(inner.XAsync(ct));` when the method only forwards |
+| `async ValueTask` that only awaits and returns | AdoNet.Async adapters | `return new ValueTask<T>(inner.XAsync(ct));` when the method only forwards and `inner.XAsync` is itself `async` or cannot throw before it returns a task; otherwise the exception escapes synchronously and the `async` wrapper stays |
 | `Task.WhenAll` when every task already completed | AsyncEvents, Mediator `[ParallelNotification]` | skip the await only when every task has `IsCompletedSuccessfully` (`Status == TaskStatus.RanToCompletion` on `netstandard2.0`); otherwise `await Task.WhenAll`, which also reports faults and cancellation of completed tasks |
 | `TagList` / log `params object[]` built before checking `Enabled` or `IsEnabled` | Scheduling, Saga | check first, or use `LoggerMessage.Define` |
 | allocating event args before checking for subscribers | Notify | copy the handler to a local, check, then allocate |
