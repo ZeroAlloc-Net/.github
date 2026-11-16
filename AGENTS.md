@@ -25,7 +25,7 @@ None of these show up in a review unless you look for them. Each one shipped in 
 | Pattern | Where it hid | Instead |
 |---|---|---|
 | `async ValueTask` that only awaits and returns | AdoNet.Async adapters | `return new ValueTask<T>(inner.XAsync(ct));` when the method only forwards |
-| `Task.WhenAll` when every task already completed | AsyncEvents, Mediator `[ParallelNotification]` | check `IsCompletedSuccessfully` first; only await what is pending |
+| `Task.WhenAll` when every task already completed | AsyncEvents, Mediator `[ParallelNotification]` | skip the await only when every task has `IsCompletedSuccessfully`; otherwise `await Task.WhenAll`, which also reports faults and cancellation of completed tasks |
 | `TagList` / log `params object[]` built before checking `Enabled` or `IsEnabled` | Scheduling, Saga | check first, or use `LoggerMessage.Define` |
 | allocating event args before checking for subscribers | Notify | copy the handler to a local, check, then allocate |
 | `new Serializer()` / `new Utf8JsonWriter()` per call | Serialisation dispatcher and adapters | cache stateless instances; reuse writers with `Reset` |
@@ -33,7 +33,7 @@ None of these show up in a review unless you look for them. Each one shipped in 
 | `ToArray()` / `ToList()` copies between layers | EventSourcing append path, Outbox, MessagePack | pass `ReadOnlyMemory<T>` or spans through; copy once at most |
 | LINQ in emitted code | Mapping nested collections | emit `for` loops |
 | `yield` iterators returned from a public `GetEnumerator` | Collections Heap* types | a public struct enumerator; this is a breaking change once shipped, so do it first time |
-| `Enum.IsDefined(typeof(E), value)`, `decimal.GetBits(value)` | Validation | `Enum.IsDefined<E>`, `value.Scale` |
+| `Enum.IsDefined(typeof(E), value)`, `decimal.GetBits(value)` | Validation | `Enum.IsDefined<E>`, `value.Scale` (not on `netstandard2.0` or `netstandard2.1`: keep a target-specific alternative there) |
 | re-parsing or re-reading configuration per call | Scheduling cron, Snowflake env var | parse once and cache |
 | an `AsyncLocal` write per call | Mediator 6.4.2 | pass state explicitly; write only when a consumer needs it |
 | a capturing lambda or method-group delegate per call | Flux `InvokeAsync(StateHasChanged)`, Mediator DI chain | cache the delegate in a field, or use a static lambda |
@@ -82,7 +82,8 @@ path, a one-time cache fill.
   generation" on a path that does exactly that.
 - The AOT smoke sample:
   - publishes with `TreatWarningsAsErrors=true`, not a list of six IL codes. If a third-party rollup warning
-    really blocks it, name the assembly and exclude only that code with `WarningsNotAsErrors`.
+    really blocks it, use a narrow, justified suppression for that warning. `WarningsNotAsErrors` selects
+    codes, not assemblies, so it would also downgrade the same warning from generated code.
   - exercises the hot path of **every** package in the repo, not only the core one, and runs it. The sweep
     reported no AOT breaks, yet ZeroAlloc.EventSourcing.Kafka crashed on its first client the moment a smoke
     ran it: Confluent.Kafka binds its native methods by reflection and the trimmer removed them. A
