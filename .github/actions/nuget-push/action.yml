@@ -72,11 +72,13 @@ runs:
           echo "::error::No nuget.org credential: set nuget-user for a trusted publisher, or pass nuget-api-key"
           exit 1
         fi
-        # .snupkg files next to the .nupkg go to the symbol server with them.
+        # Packages embed their PDB, so there is no symbol package to push; --no-symbols
+        # keeps a stray .snupkg next to a .nupkg from going to the symbol server.
         dotnet nuget push "$PACKAGES_DIR/*.nupkg" \
           --source https://api.nuget.org/v3/index.json \
           --api-key "$NUGET_API_KEY" \
-          --skip-duplicate
+          --skip-duplicate \
+          --no-symbols
 
     - name: Push to GitHub Packages
       if: ${{ inputs.github-packages == 'true' }}
