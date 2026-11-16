@@ -24,7 +24,7 @@ None of these show up in a review unless you look for them. Each one shipped in 
 
 | Pattern | Where it hid | Instead |
 |---|---|---|
-| `async ValueTask` that only awaits and returns | AdoNet.Async adapters | `return new ValueTask<T>(inner.XAsync(ct));` when the method only forwards and `inner.XAsync` is itself `async` or cannot throw before it returns a task; otherwise the exception escapes synchronously and the `async` wrapper stays |
+| `async ValueTask` that only awaits and returns | AdoNet.Async adapters | `return new ValueTask<T>(inner.XAsync(ct));` when the method only forwards. The wrapper stores a synchronous throw in the returned task; the direct return lets it, and the cancellation status of the callee, reach the caller. Keep the `async` wrapper when callers depend on either |
 | `Task.WhenAll` when every task already completed | AsyncEvents, Mediator `[ParallelNotification]` | skip the await only when every task has `IsCompletedSuccessfully` (`Status == TaskStatus.RanToCompletion` on `netstandard2.0`); otherwise `await Task.WhenAll`, which also reports faults and cancellation of completed tasks |
 | `TagList` / log `params object[]` built before checking `Enabled` or `IsEnabled` | Scheduling, Saga | check first, or use `LoggerMessage.Define` |
 | allocating event args before checking for subscribers | Notify | copy the handler to a local, check, then allocate |
@@ -33,7 +33,7 @@ None of these show up in a review unless you look for them. Each one shipped in 
 | `ToArray()` / `ToList()` copies between layers | EventSourcing append path, Outbox, MessagePack | pass `ReadOnlyMemory<T>` or spans through; copy once at most |
 | LINQ in emitted code | Mapping nested collections | emit `for` loops |
 | `yield` iterators returned from a public `GetEnumerator` | Collections Heap* types | a public struct enumerator; this is a breaking change once shipped, so do it first time |
-| `Enum.IsDefined(typeof(E), value)`, `decimal.GetBits(value)` | Validation | `Enum.IsDefined<E>`, `value.Scale` (`Scale` needs .NET 7 or later: keep a target-specific alternative on older targets and on `netstandard2.0` and `netstandard2.1`) |
+| `Enum.IsDefined(typeof(E), value)` with a boxed value, `decimal.GetBits(value)` to read the scale | Validation | `Enum.IsDefined<E>(value)` when `value` has type `E` (not on `netstandard2.0` or `netstandard2.1`); `value.Scale` for a scale read only (.NET 7 or later, never for the coefficient or sign). Keep the old call on older targets |
 | re-parsing or re-reading configuration per call | Scheduling cron, Snowflake env var | parse once and cache |
 | an `AsyncLocal` write per call | Mediator 6.4.2 | pass state explicitly; write only when a consumer needs it |
 | a capturing lambda or method-group delegate per call | Flux `InvokeAsync(StateHasChanged)`, Mediator DI chain | cache the delegate in a field, or use a static lambda |
