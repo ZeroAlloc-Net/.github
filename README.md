@@ -11,6 +11,7 @@ Organization profile and meta-repo for **[ZeroAlloc-Net](https://github.com/Zero
 | [`AGENTS.md`](AGENTS.md) | Org-wide rules for agents and contributors: hot-path allocation patterns, tests, AOT smoke and docs, from the 2026-10-11 sweep |
 | [`.github/workflows/api-compat.yml`](.github/workflows/api-compat.yml) | Reusable gate comparing each package's public API with its latest NuGet release |
 | [`.github/workflows/benchmark-smoke.yml`](.github/workflows/benchmark-smoke.yml) | Reusable smoke run that fails when any benchmark crashes or produces no result |
+| [`.github/workflows/roslyn-floor.yml`](.github/workflows/roslyn-floor.yml) | Reusable gate that packs the solution and fails when a packed DLL references a Roslyn newer than 5.0.0, the compiler of the oldest supported SDK |
 | [`.github/workflows/ship-release-tracking.yml`](.github/workflows/ship-release-tracking.yml) | Reusable release-please step that moves Unshipped analyzer rules and public API to Shipped on the release PR |
 | [`.github/workflows/publish.yml`](.github/workflows/publish.yml) | Reusable NuGet publish: builds the release tag, packs every packable project, verifies the versions in the packages, pushes, then waits for nuget.org and verifies the published bytes |
 | [`.github/workflows/release-tracking.yml`](.github/workflows/release-tracking.yml) | Reusable CI guard that fails a release PR while anything is left Unshipped |

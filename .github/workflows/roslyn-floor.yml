@@ -1,0 +1,157 @@
+name: Roslyn floor
+
+# Reusable workflow that fails when a packed DLL references a newer Roslyn than the
+# oldest compiler the org supports.
+#
+# A source generator or analyzer runs inside the consumer's compiler, and the
+# Microsoft.CodeAnalysis version it references is the oldest compiler that can load
+# it. A newer compiler loads it; an older one skips it with warning CS9057 and the
+# generated code is missing, so the consumer's build fails later with errors that do
+# not mention the generator at all. The supported floor is SDK 10.0.1xx, whose
+# compiler is Roslyn 5.0, so nothing we ship may reference Roslyn above 5.0.0.
+#
+# CI cannot see this on its own. The repos build with SDK 11, whose compiler loads a
+# generator built against any Roslyn up to 5.12, so every check stays green. That is
+# how 18 of the 24 majors of 2026-11 shipped generators built against 5.12, which no
+# .NET 10 SDK loads. See ZeroAlloc-Net/.github#77.
+#
+# The job packs the caller's solution and reads the assembly references of every DLL
+# in every package, not only analyzers/dotnet/cs: a Roslyn helper library such as
+# ZeroAlloc.Pipeline.Generators ships under lib/ and is bundled into other packages'
+# generators, so its reference sets their floor too. A DLL that references no
+# Microsoft.CodeAnalysis assembly is not a generator and is ignored.
+#
+# Consume from a repo's ci.yml:
+#
+#   roslyn-floor:
+#     uses: ZeroAlloc-Net/.github/.github/workflows/roslyn-floor.yml@main
+#
+# The Renovate preset in this repository keeps Microsoft.CodeAnalysis.CSharp and
+# Microsoft.CodeAnalysis.Common below 5.1 in src/, so this check fails only on a
+# hand-made raise. Raise max-version only together with the documented minimum SDK.
+
+on:
+  workflow_call:
+    inputs:
+      solution:
+        description: >-
+          Optional. The solution or project to pack. Default: the single *.slnx or *.sln
+          in the repository root.
+        required: false
+        type: string
+        default: ''
+      max-version:
+        description: >-
+          Highest Microsoft.CodeAnalysis assembly version a packed DLL may reference.
+          5.0.0 is the compiler of SDK 10.0.1xx, the oldest supported SDK band.
+        required: false
+        type: string
+        default: '5.0.0'
+      dotnet-version:
+        description: >-
+          Extra .NET SDK version or versions installed on the runner, one per line.
+          Installed next to the SDK pinned in the caller's global.json. Default 10.0.x.
+        required: false
+        type: string
+        default: '10.0.x'
+
+permissions:
+  contents: read
+
+jobs:
+  roslyn-floor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: ${{ hashFiles('global.json') != '' && 'global.json' || '' }}
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Pack
+        env:
+          SOLUTION: ${{ inputs.solution }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SOLUTION" ]; then
+            mapfile -t found < <(ls *.slnx *.sln 2>/dev/null || true)
+            if [ "${#found[@]}" -ne 1 ]; then
+              echo "::error::expected one *.slnx or *.sln in the repository root, found ${#found[@]}; pass the solution input"
+              exit 1
+            fi
+            SOLUTION="${found[0]}"
+          fi
+          echo "Packing $SOLUTION"
+          dotnet pack "$SOLUTION" -c Release -o "$RUNNER_TEMP/packages" -p:Version=9999.0.0
+
+      - name: Check Roslyn references
+        env:
+          MAX_VERSION: ${{ inputs.max-version }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/roslyn-floor"
+          mkdir -p "$work/extracted" "$work/scan"
+          for pkg in "$RUNNER_TEMP"/packages/*.nupkg; do
+            [ -e "$pkg" ] || continue
+            # Exit code 11 means the package holds no DLL, such as a source-only package.
+            unzip -qo "$pkg" '*.dll' -d "$work/extracted/$(basename "$pkg" .nupkg)" || [ $? -eq 11 ]
+          done
+
+          # A file-based C# program reads the metadata, so no tool or package is installed.
+          # It lives outside the checkout, so the caller's global.json and Directory.Build.props
+          # do not apply to it.
+          cat > "$work/scan/scan.cs" <<'EOF'
+          using System.Reflection.Metadata;
+          using System.Reflection.PortableExecutable;
+
+          var max = Version.Parse(Environment.GetEnvironmentVariable("MAX_VERSION")!);
+          var root = args[0];
+          int checkedDlls = 0, failures = 0;
+          var summary = new List<string>();
+          foreach (var path in Directory.EnumerateFiles(root, "*.dll", SearchOption.AllDirectories).Order())
+          {
+              using var stream = File.OpenRead(path);
+              using var pe = new PEReader(stream);
+              if (!pe.HasMetadata) continue;
+              var md = pe.GetMetadataReader();
+              Version? highest = null;
+              foreach (var handle in md.AssemblyReferences)
+              {
+                  var reference = md.GetAssemblyReference(handle);
+                  if (!md.GetString(reference.Name).StartsWith("Microsoft.CodeAnalysis", StringComparison.Ordinal)) continue;
+                  if (highest is null || reference.Version > highest) highest = reference.Version;
+              }
+              if (highest is null) continue;
+              checkedDlls++;
+              var relative = Path.GetRelativePath(root, path);
+              var ok = new Version(highest.Major, highest.Minor, Math.Max(highest.Build, 0)) <= max;
+              if (!ok)
+              {
+                  failures++;
+                  Console.WriteLine($"::error::{relative} references Roslyn {highest}, above the floor {max}. A compiler older than {highest.Major}.{highest.Minor} skips it with CS9057.");
+              }
+              Console.WriteLine($"{(ok ? "ok  " : "FAIL")} {highest}  {relative}");
+              summary.Add($"| `{relative}` | {highest} | {(ok ? "ok" : "**above the floor**")} |");
+          }
+          var summaryFile = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
+          if (summaryFile is not null)
+          {
+              var lines = new List<string> { "### Roslyn floor", "", $"Floor: Microsoft.CodeAnalysis {max}", "" };
+              if (summary.Count > 0) lines.AddRange(["| DLL | Roslyn | |", "|---|---|---|", .. summary]);
+              File.AppendAllLines(summaryFile, lines);
+          }
+          if (checkedDlls == 0)
+          {
+              // A gate that checks nothing must not read as coverage.
+              Console.WriteLine("::error::no packed DLL references Microsoft.CodeAnalysis; this repository ships no generator or analyzer, so it should not call this workflow");
+              return 1;
+          }
+          Console.WriteLine($"{checkedDlls} DLL(s) reference Roslyn, {failures} above the floor.");
+          return failures == 0 ? 0 : 1;
+          EOF
+
+          cd "$work/scan"
+          dotnet run scan.cs -- "$work/extracted"

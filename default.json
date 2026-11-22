@@ -419,6 +419,59 @@
     },
     {
       "description": [
+        "A source generator or analyzer runs in the consumer's compiler, and the",
+        "Microsoft.CodeAnalysis version it references is the oldest compiler that loads it.",
+        "An older compiler skips it with CS9057 and the generated code is missing. The",
+        "oldest supported SDK band is 10.0.1xx, whose compiler is Roslyn 5.0, so the",
+        "packages a generator compiles against stay below 5.1 in src/ and in the repo-wide",
+        "props files that set src's versions. Test projects may use a newer Roslyn.",
+        "",
+        "Renovate took the org to 5.12, which only SDK 11 runs, and 18 of the 24 majors of",
+        "2026-11 shipped generators that no .NET 10 SDK loads. CI did not see it, because",
+        "the repos build with SDK 11. See ZeroAlloc-Net/.github#77. The roslyn-floor.yml",
+        "workflow in this repository checks the packed DLLs.",
+        "",
+        "Microsoft.CodeAnalysis.Analyzers is not capped: it only runs analyzers over the",
+        "generator's own build and adds no reference to the packed DLL. It has no stable",
+        "5.0 release either.",
+        "",
+        "Raise this cap only together with the documented minimum SDK."
+      ],
+      "matchDatasources": [
+        "nuget"
+      ],
+      "matchPackageNames": [
+        "Microsoft.CodeAnalysis.CSharp",
+        "Microsoft.CodeAnalysis.Common",
+        "Microsoft.CodeAnalysis.CSharp.Workspaces",
+        "Microsoft.CodeAnalysis.Workspaces.Common"
+      ],
+      "matchFileNames": [
+        "src/**",
+        "Directory.Packages.props",
+        "Directory.Build.props"
+      ],
+      "allowedVersions": "<5.1"
+    },
+    {
+      "description": [
+        "A tests/*.Sdk10Smoke folder builds a consumer of the packed packages with the",
+        "oldest supported SDK band, and its global.json pins that band with rollForward",
+        "latestPatch. Moving the pin to a newer band makes the job build with a newer",
+        "compiler, which loads any generator, so the check passes without checking",
+        "anything. Renovate did exactly that in ZeroAlloc.Inject#278 and",
+        "ZeroAlloc.ValueObjects#297."
+      ],
+      "matchDepNames": [
+        "dotnet-sdk"
+      ],
+      "matchFileNames": [
+        "tests/*.Sdk10Smoke/global.json"
+      ],
+      "enabled": false
+    },
+    {
+      "description": [
         "A library keeps the internal ZeroAlloc floor it ships with, such as",
         "ZeroAlloc.Mediator >= 5.1.5, for as long as it still works with the newer",
         "major. Raising that floor in shipped code forces every consumer onto the new",

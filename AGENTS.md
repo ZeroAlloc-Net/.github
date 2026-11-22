@@ -76,6 +76,12 @@ path, a one-time cache fill.
   AOT analyzers run. Projects that consumers publish, such as template projects, set it too.
 - Analyzers and source generators target `netstandard2.0`. The compiler loads them in every host,
   including Visual Studio on .NET Framework, and a newer target fails to load there.
+- Analyzers, source generators and Roslyn helper libraries reference `Microsoft.CodeAnalysis.CSharp`
+  5.0.0, the compiler of SDK 10.0.1xx, the oldest supported SDK. A compiler older than the Roslyn a
+  generator references skips it with `CS9057`, and the generated code is missing; CI builds with SDK 11
+  and stays green. 18 majors of 2026-11 shipped against 5.12 that way. The shared Renovate preset holds
+  the version below 5.1, and repos with a generator call `roslyn-floor.yml` from CI. If a generator
+  needs a newer Roslyn API, change the code; raise the floor only together with the minimum SDK.
 - No reflection or runtime code generation on any supported path. An opt-in reflection fallback carries
   honest `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`.
 - A suppression must be true. Remove dead ones; the sweep found suppressions justified by "no runtime code
