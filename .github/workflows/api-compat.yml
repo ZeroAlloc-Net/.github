@@ -254,13 +254,22 @@ jobs:
         # patch against x.y.z and each x.(y+1).0 minor against x.y.(latest).
         # Major bumps temporarily fire on intentional breaks — accept that
         # as the cost of correctness.
+        # A maintenance branch release/N.x, or a PR into one, ships patches of
+        # major N, so its baseline is the highest stable N.* version: the
+        # newest major has a different API and is not what the patch replaces.
         env:
           PACKAGE_ID: ${{ matrix.package.id }}
+          BRANCH: ${{ github.base_ref || github.ref_name }}
         run: |
           set -euo pipefail
           pkg_lower=$(echo "$PACKAGE_ID" | tr '[:upper:]' '[:lower:]')
+          major_filter='.'
+          if [[ "$BRANCH" =~ ^release/([0-9]+)\.x$ ]]; then
+            major_filter="^${BASH_REMATCH[1]}\\."
+            echo "Maintenance branch $BRANCH: comparing against the highest ${BASH_REMATCH[1]}.x version."
+          fi
           latest=$(curl -s "https://api.nuget.org/v3-flatcontainer/${pkg_lower}/index.json" \
-                   | jq -r '.versions[]?' | grep -vE '(-|preview|alpha|beta|rc)' | tail -1 || true)
+                   | jq -r '.versions[]?' | grep -vE '(-|preview|alpha|beta|rc)' | grep -E "$major_filter" | tail -1 || true)
           if [ -z "$latest" ]; then
             echo "No stable releases of $PACKAGE_ID on nuget.org yet — skipping baseline check."
             echo "- \`$PACKAGE_ID\` — no published baseline, not compared" >> "$GITHUB_STEP_SUMMARY"
