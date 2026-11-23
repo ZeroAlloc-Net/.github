@@ -255,7 +255,8 @@ jobs:
         # Major bumps temporarily fire on intentional breaks — accept that
         # as the cost of correctness.
         # A maintenance branch release/N.x, a PR into one, or a push to its
-        # release-please--branches--release/N.x release PR branch ships patches
+        # release-please--branches--release/N.x release PR branch (with a
+        # --components--<name> suffix in a monorepo manifest) ships patches
         # of major N, so its baseline is the highest stable N.* version: the
         # newest major has a different API and is not what the patch replaces.
         # A release/N.M.x branch patches the N.M line the same way, for a
@@ -267,7 +268,7 @@ jobs:
           set -euo pipefail
           pkg_lower=$(echo "$PACKAGE_ID" | tr '[:upper:]' '[:lower:]')
           major_filter='.'
-          if [[ "$BRANCH" =~ ^(release-please--branches--)?release/([0-9]+(\.[0-9]+)?)\.x$ ]]; then
+          if [[ "$BRANCH" =~ ^(release-please--branches--)?release/([0-9]+(\.[0-9]+)?)\.x(--components--[^/]+)?$ ]]; then
             line=${BASH_REMATCH[2]}
             major_filter="^${line//./\\.}\\."
             echo "Maintenance branch $BRANCH: comparing against the highest $line.x version."
